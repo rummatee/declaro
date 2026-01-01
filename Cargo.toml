@@ -1,0 +1,30 @@
+[package]
+name = "declaro"
+version = "0.1.0"
+authors = ["Florian Schunk <florian.git@repatr.de>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dioxus = { version = "0.6.0", features = [] }
+syntax = { git = "https://github.com/oxalica/nil" }
+nix-interop = { git = "https://github.com/oxalica/nil" }
+
+[features]
+default = ["desktop"]
+web = ["dioxus/web"]
+desktop = ["dioxus/desktop"]
+mobile = ["dioxus/mobile"]
+
+[profile]
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"
