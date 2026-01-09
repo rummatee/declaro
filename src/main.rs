@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use syntax::ast::{HasBindings, HasStringParts};
-use syntax::match_ast;
+use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use std::fs;
 
@@ -10,6 +10,24 @@ const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const HEADER_SVG: Asset = asset!("/assets/header.svg");
 
+#[macro_export]
+macro_rules! use_ast_node_strict {
+    (
+        $ast:expr,
+        $ptr:expr => $ty:ty
+    ) => {{
+        use dioxus::prelude::*;
+        use rowan::ast::AstNode;
+
+        use_memo(move || {
+            let ast = $ast.read();
+            let syntax = $ptr.to_node(&ast);
+
+            <$ty as AstNode>::cast(syntax)
+                .expect("AST node cast failed")
+        })
+    }};
+}
 
 fn main() {
     dioxus::launch(App);
@@ -19,9 +37,9 @@ fn main() {
 fn App() -> Element {
     let file_path = use_hook(|| {"./example.nix"});
     let contents = fs::read_to_string(file_path).expect("Could not read file");
-    let ast = syntax::parse_file(&contents);
-    let root = ast.syntax_node();
-    print!("{:#?}",root);
+    let ast = use_signal(|| {syntax::parse_file(&contents).syntax_node()});
+    println!("AST: {}", ast.read());
+    let root = ast.read();
     let sourceFile = match_ast!{
         match root {
         syntax::ast::SourceFile(src) => src,
@@ -30,26 +48,22 @@ fn App() -> Element {
     };
     let expr = sourceFile.expr().unwrap();
     let node = expr.syntax();
-    let set = match_ast!{
-        match node {
-        syntax::ast::AttrSet(set) => set,
-        _ => panic!("Expected an attribute set at the root of the file, got {:?}", node.kind()),
-        }
-    };
+    let ptr = SyntaxNodePtr::new(&node);
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS } 
         div {
             class: "app-container",
             h1 { "Nix Attribute Set Editor" }
-            AttributeSetUI { set: set }
+            AttributeSetUI { ptr: ptr, ast: ast }
         }
     }
 }
 
 #[component]
-pub fn AttributeSetUI(set: syntax::ast::AttrSet) -> Element {
-    let elements = set.bindings()
+pub fn AttributeSetUI(ptr: SyntaxNodePtr, ast: Signal<SyntaxNode>) -> Element {
+    let set = use_ast_node_strict!(ast, ptr => syntax::ast::AttrSet);
+    let elements = set.read().bindings()
         .filter_map(|binding| match binding {
             syntax::ast::Binding::AttrpathValue(attr) => Some(attr),
             _ => None,
@@ -63,8 +77,9 @@ pub fn AttributeSetUI(set: syntax::ast::AttrSet) -> Element {
                         let node = val.syntax();
                         match_ast!{
                         match node {
-                            syntax::ast::String(str_node) => {
-                                rsx! { StringInput { node: str_node, id: format!("input-{}", label) } }
+                            syntax::ast::String(_str_node) => {
+                                let ptr = SyntaxNodePtr::new(&node);
+                                rsx! { StringInput { ptr: ptr, ast: ast, id: format!("input-{}", label) } }
                             },
                             _ => rsx! { div { "Unsupported Value Type" } },
                         }
@@ -92,8 +107,9 @@ pub fn AttributeSetUI(set: syntax::ast::AttrSet) -> Element {
 
 
 #[component]
-pub fn StringInput(node: syntax::ast::String, id: String) -> Element {
-    let value = node.string_parts().filter_map(|part| {
+pub fn StringInput(ptr: SyntaxNodePtr, ast: Signal<SyntaxNode>, id: String) -> Element {
+    let node = use_ast_node_strict!(ast, ptr => syntax::ast::String);
+    let value = node.read().string_parts().filter_map(|part| {
         match part {
         syntax::ast::StringPart::Fragment(text) => Some(text.text().to_string()),
         _ => None,
@@ -104,6 +120,20 @@ pub fn StringInput(node: syntax::ast::String, id: String) -> Element {
             class: "string-input",
             id: "{id}",
             value: value,
+            oninput: move |e| {
+                println!("New value: {}", e.value());
+                let new_value = e.value().clone();
+                let new_source_file = <syntax::ast::SourceFile as AstNode>::cast(syntax::parse_file(&format!("\"{}\"", new_value))
+                    .syntax_node());
+                let expr = new_source_file.unwrap()
+                    .expr().unwrap();
+                let new_string_node = expr
+                    .syntax().green();
+                let new_root = SyntaxNode::new_root(
+                    node.read().syntax().replace_with((*new_string_node).to_owned())
+                );
+                ast.set(new_root);
+            }
         }
     }
 }
