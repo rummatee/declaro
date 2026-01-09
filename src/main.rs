@@ -29,6 +29,26 @@ macro_rules! use_ast_node_strict {
     }};
 }
 
+fn update_node_value<N, F>(
+    mut ast: Signal<SyntaxNode>,
+    node: N,
+    new_value: &str,
+    extract_new_node: F,
+)
+where
+    N: AstNode,
+    F: Fn(&SyntaxNode) -> Option<SyntaxNode>,
+{
+    let new_syntax = syntax::parse_file(new_value).syntax_node();
+    if let Some(new_node) = extract_new_node(&new_syntax) {
+        let green_node = new_node.green();
+        let new_root = SyntaxNode::new_root(
+            node.syntax().replace_with((*green_node).to_owned())
+        );
+        ast.set(new_root);
+    }
+}
+
 fn main() {
     dioxus::launch(App);
 }
@@ -122,17 +142,16 @@ pub fn StringInput(ptr: SyntaxNodePtr, ast: Signal<SyntaxNode>, id: String) -> E
             value: value,
             oninput: move |e| {
                 println!("New value: {}", e.value());
-                let new_value = e.value().clone();
-                let new_source_file = <syntax::ast::SourceFile as AstNode>::cast(syntax::parse_file(&format!("\"{}\"", new_value))
-                    .syntax_node());
-                let expr = new_source_file.unwrap()
-                    .expr().unwrap();
-                let new_string_node = expr
-                    .syntax().green();
-                let new_root = SyntaxNode::new_root(
-                    node.read().syntax().replace_with((*new_string_node).to_owned())
+                update_node_value(
+                    ast,
+                    node.read().clone(),
+                    &format!("\"{}\"", e.value()),
+                    |syntax| {
+                        <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
+                            .and_then(|sf| sf.expr())
+                            .map(|expr| expr.syntax().clone())
+                    }
                 );
-                ast.set(new_root);
             }
         }
     }
