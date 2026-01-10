@@ -92,6 +92,23 @@ fn App() -> Element {
                 },
                 "Open"
             }
+            button {
+                onclick: move |_| {
+                    let root = ast.read();
+                    let sourceFile = match_ast!{
+                match root {
+                syntax::ast::SourceFile(src) => src,
+                _ => panic!("Expected an source file at the root of the file, got {:?}", root.kind()),
+                }
+                    };
+                    let expr = sourceFile.expr().unwrap();
+                    let node = expr.syntax();
+                    let serialized = node.to_string();
+                    fs::write(file_path.read().clone(), serialized).expect("Could not write to file");
+                },
+                id: "save-file",
+                "Save"
+            }
             AttributeSetUI { ptr: ptr, ast: ast }
         }
     }
