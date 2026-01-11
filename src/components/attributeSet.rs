@@ -4,12 +4,13 @@ use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
 use crate::{use_ast_node_strict};
+use crate::ast::path_from_root;
 use crate::components::stringInput::StringInput;
 
 #[component]
 pub fn AttributeSetUI(ptr: SyntaxNodePtr) -> Element {
     let set = use_ast_node_strict!(ptr => syntax::ast::AttrSet);
-    let elements = set.read().bindings()
+    let elements = set.bindings()
         .filter_map(|binding| match binding {
             syntax::ast::Binding::AttrpathValue(attr) => Some(attr),
             _ => None,
@@ -26,6 +27,13 @@ pub fn AttributeSetUI(ptr: SyntaxNodePtr) -> Element {
                             syntax::ast::String(_str_node) => {
                                 let ptr = SyntaxNodePtr::new(&node);
                                 rsx! { StringInput { ptr: ptr, id: format!("input-{}", label) } }
+                            },
+                            syntax::ast::AttrSet(_set_node) => {
+                                rsx! { Link {
+                                    to: crate::router::Route::NodeUI{ path: path_from_root(&node)},
+                                    "AttrSet"
+                                    }
+                                }
                             },
                             _ => rsx! { div { "Unsupported Value Type" } },
                         }

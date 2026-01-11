@@ -1,17 +1,19 @@
 use dioxus::prelude::*;
-use syntax::{match_ast, SyntaxNodePtr};
+use syntax::{match_ast, NixLanguage, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use std::fs;
 
 mod ast;
 mod components;
+mod router;
 
 use components::*;
+
+use crate::ast::AstPath;
 
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
-
 
 fn main() {
     dioxus::launch(App);
@@ -25,15 +27,6 @@ fn App() -> Element {
     use_context_provider(|| ast);
     let root = ast.read();
     println!("AST: {}", root);
-    let sourceFile = match_ast!{
-        match root {
-        syntax::ast::SourceFile(src) => src,
-        _ => panic!("Expected an source file at the root of the file, got {:?}", root.kind()),
-        }
-    };
-    let expr = sourceFile.expr().unwrap();
-    let node = expr.syntax();
-    let ptr = SyntaxNodePtr::new(&node);
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS } 
@@ -74,7 +67,7 @@ fn App() -> Element {
                 id: "save-file",
                 "Save"
             }
-            AttributeSetUI { ptr: ptr }
+            Router::<router::Route> {}
         }
     }
 }
