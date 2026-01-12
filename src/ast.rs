@@ -107,10 +107,12 @@ macro_rules! use_ast_node_strict {
         use rowan::ast::AstNode;
 
         let ast = use_context::<Signal<SyntaxNode>>();
-        let syntax = $ptr.to_node(&ast.read());
+        use_memo(move || {
+            let syntax = $ptr.read().to_node(&ast.read());
 
-        <$ty as AstNode>::cast(syntax)
-            .expect("AST node cast failed")
+            <$ty as AstNode>::cast(syntax)
+                .expect("AST node cast failed")
+        })
     }};
 }
 

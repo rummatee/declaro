@@ -8,9 +8,9 @@ use crate::ast::path_from_root;
 use crate::components::stringInput::StringInput;
 
 #[component]
-pub fn AttributeSetUI(ptr: SyntaxNodePtr) -> Element {
+pub fn AttributeSetUI(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
     let set = use_ast_node_strict!(ptr => syntax::ast::AttrSet);
-    let elements = set.bindings()
+    let elements = set.read().bindings()
         .filter_map(|binding| match binding {
             syntax::ast::Binding::AttrpathValue(attr) => Some(attr),
             _ => None,
