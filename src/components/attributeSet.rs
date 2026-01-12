@@ -30,6 +30,7 @@ pub fn AttributeSetUI(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
                             },
                             syntax::ast::AttrSet(_set_node) => {
                                 rsx! { Link {
+                                    class: "attribute-set-link subpage-link",
                                     to: crate::router::Route::NodeUI{ path: path_from_root(&node)},
                                     "AttrSet"
                                     }
