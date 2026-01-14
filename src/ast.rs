@@ -45,6 +45,11 @@ pub fn collect_path(root: SyntaxNode, path: &AstPath) -> Vec<IndexedNode> {
     let mut nodes = Vec::new();
     let mut current = root;
     let mut current_path = AstPath { indices: Vec::new() };
+    let indexNode = IndexedNode {
+        index: AstPath { indices: vec![0] },
+        node: current.clone(),
+    };
+    nodes.push(indexNode);
     for &index in &path.indices {
         if let Some(child) = current.children().nth(index) {
             current_path.indices.push(index);

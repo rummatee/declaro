@@ -68,7 +68,7 @@ pub fn Nav(path: AstPath) -> Element {
                         .unwrap_or("unknown".to_string());
                     Some((label,index))
                 },
-                syntax::ast::Expr(_sf) => {
+                syntax::ast::SourceFile(_sf) => {
                     let mut index = index_node.index.clone();
                     let label = "root".to_string();
                     Some((label,index))
