@@ -35,6 +35,7 @@ fn App() -> Element {
             h1 { "Declaro" }
             input {
                 type: "file",
+                id: "open-file",
                 multiple: "false",
                 id: "open-file",
                 accept: ".nix",
