@@ -11,37 +11,19 @@ pub fn RefInput(ptr: ReadOnlySignal<SyntaxNodePtr>, id: String) -> Element {
     let node = use_ast_node_strict!(ptr => syntax::ast::Ref);
     let selected = node.read().token().unwrap();
     let analysis = use_context::<Signal<(AnalysisHost, FileId)>>();
-    /* Approach using completions. The problem is that using the start position, it doesn't
-     * recognize as inside of the expression and no completions are returned,
-     * however going any character further filters the results by that prefix
-    let options = analysis.read().0.snapshot().completions(
-        ide::FilePos { file_id: analysis.read().1, pos: node.read().token().unwrap().text_range().start() },
-        None
-    )?.into_iter().filter(
-        |item| {
-            println!("completion item: {}", item.label);
-            matches!(item.kind, ide::CompletionItemKind::Param)
-        }
-    ).enumerate().map(|(i, item)| {
-        let label = item.label.clone();
-        rsx! {
-            option { { label } }
-        }
-    });
-    */
 
-    let snapshot = analysis.read().0.snapshot();
-    let scopes = snapshot.scopes(analysis.read().1).unwrap();
-    let expr_id = snapshot
-        .source_map(analysis.read().1).unwrap()
-        .expr_for_node(SyntaxNodePtr::new(node.read().syntax())).unwrap();
-    let scope_id = scopes.scope_for_expr(expr_id).unwrap();
-    let options = scopes
-        .ancestors(scope_id)
-        .filter_map(|scope| scope.as_definitions())
-        .flatten()
-        .map(|(name, _def)| {
-            let label = name.to_string();
+    let bindings_option = get_bindings_in_scope(node.read().syntax(), &analysis.read());
+
+    if bindings_option.is_none() {
+        return rsx! {
+        }
+    }
+
+    let bindings = bindings_option.unwrap();
+
+    let options = bindings
+        .iter()
+        .map(|label| {
             rsx! {
                 option {
                     selected: label == selected.text(),
@@ -52,7 +34,35 @@ pub fn RefInput(ptr: ReadOnlySignal<SyntaxNodePtr>, id: String) -> Element {
 
     rsx! {
         select { 
+            onchange: move |e| {
+
+                update_node_value(
+                    node.read().clone(),
+                    &e.value(),
+                    |syntax| {
+                        <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
+                            .and_then(|sf| sf.expr())
+                            .map(|expr| expr.syntax().clone())
+                    }
+                );
+            },
             {options}
         }
     }
+}
+
+pub fn get_bindings_in_scope(node: &SyntaxNode, analysis: &(AnalysisHost, FileId)) -> Option<Vec<String>>{
+    let snapshot = analysis.0.snapshot();
+    let scopes = snapshot.scopes(analysis.1).ok()?;
+    println!("expr_id: {:?}", SyntaxNodePtr::new(node));
+    let expr_id = snapshot
+        .source_map(analysis.1).unwrap()
+        .expr_for_node(SyntaxNodePtr::new(node))?;
+    let scope_id = scopes.scope_for_expr(expr_id)?;
+    Some(scopes
+        .ancestors(scope_id)
+        .filter_map(|scope| scope.as_definitions())
+        .flatten()
+        .map(|(name, _def)| name.to_string())
+        .collect::<Vec<String>>())
 }
