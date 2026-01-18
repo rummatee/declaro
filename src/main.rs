@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use syntax::{match_ast, NixLanguage, SyntaxNodePtr};
+use syntax::{match_ast};
 use syntax::ast::AstNode;
 use std::fs;
 
@@ -7,9 +7,6 @@ mod ast;
 mod components;
 mod router;
 
-use components::*;
-
-use crate::ast::AstPath;
 
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
@@ -24,7 +21,7 @@ fn App() -> Element {
     let mut file_path = use_signal(|| {"./example.nix".to_owned()});
     let contents = fs::read_to_string(file_path.read().clone()).expect("Could not read file");
     let mut ast = use_signal(|| {syntax::parse_file(&contents).syntax_node()});
-    let mut analysis_host = use_signal(|| ide::AnalysisHost::new_single_file(&contents));
+    let analysis_host = use_signal(|| ide::AnalysisHost::new_single_file(&contents));
     use_context_provider(|| ast);
     use_context_provider(|| analysis_host);
     let root = ast.read();

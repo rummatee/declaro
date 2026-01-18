@@ -1,14 +1,13 @@
-pub mod attributeSet;
-pub mod stringInput;
-pub mod refInput;
+pub mod attribute_set;
+pub mod string_input;
+pub mod ref_input;
 pub mod lambda;
 use dioxus::prelude::*;
 use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use crate::router::Route;
 
-pub use attributeSet::*;
-pub use stringInput::*;
+pub use attribute_set::*;
 pub use lambda::*;
 
 use crate::ast::{collect_path, resolve_path, AstPath};
@@ -70,7 +69,7 @@ pub fn Nav(path: AstPath) -> Element {
                     Some((label,index))
                 },
                 syntax::ast::SourceFile(_sf) => {
-                    let mut index = index_node.index.clone();
+                    let index = index_node.index.clone();
                     let label = "root".to_string();
                     Some((label,index))
                 },

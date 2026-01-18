@@ -1,12 +1,9 @@
-use syntax::ast::{HasBindings, HasStringParts, Lambda};
-use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
+use syntax::{SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
-use crate::components::{ExpressionUI, NodeUI};
-use crate::{use_ast_node_strict};
-use crate::ast::path_from_root;
-use crate::components::stringInput::StringInput;
+use crate::components::ExpressionUI;
+use crate::use_ast_node_strict;
 
 #[component]
 pub fn LambdaUI(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {

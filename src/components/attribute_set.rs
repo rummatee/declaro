@@ -1,12 +1,12 @@
-use syntax::ast::{HasBindings, HasStringParts};
+use syntax::ast::{HasBindings};
 use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
 use crate::{use_ast_node_strict};
 use crate::ast::path_from_root;
-use crate::components::stringInput::StringInput;
-use crate::components::refInput::RefInput;
+use crate::components::string_input::StringInput;
+use crate::components::ref_input::RefInput;
 
 #[component]
 pub fn AttributeSetUI(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {

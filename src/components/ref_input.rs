@@ -1,8 +1,5 @@
-use dioxus_primitives::select;
 use ide::{AnalysisHost, FileId};
-use ide::DefDatabase;
-use syntax::ast::{HasStringParts};
-use syntax::{SyntaxNode, SyntaxNodePtr, TextSize};
+use syntax::{SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
@@ -12,7 +9,7 @@ use crate::ast::{update_node_value};
 #[component]
 pub fn RefInput(ptr: ReadOnlySignal<SyntaxNodePtr>, id: String) -> Element {
     let node = use_ast_node_strict!(ptr => syntax::ast::Ref);
-    let selected = node.read().token().unwrap().text();
+    let selected = node.read().token().unwrap();
     let analysis = use_context::<Signal<(AnalysisHost, FileId)>>();
     /* Approach using completions. The problem is that using the start position, it doesn't
      * recognize as inside of the expression and no completions are returned,
@@ -47,7 +44,7 @@ pub fn RefInput(ptr: ReadOnlySignal<SyntaxNodePtr>, id: String) -> Element {
             let label = name.to_string();
             rsx! {
                 option {
-                    selected: label == node.read().token().unwrap().text(),
+                    selected: label == selected.text(),
                     { label.clone() }
                 }
             }
