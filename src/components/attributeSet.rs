@@ -6,6 +6,7 @@ use dioxus::prelude::*;
 use crate::{use_ast_node_strict};
 use crate::ast::path_from_root;
 use crate::components::stringInput::StringInput;
+use crate::components::refInput::RefInput;
 
 #[component]
 pub fn AttributeSetUI(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
@@ -35,6 +36,10 @@ pub fn AttributeSetUI(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
                                     "AttrSet"
                                     }
                                 }
+                            },
+                            syntax::ast::Ref(_ref_node) => {
+                                let ptr = SyntaxNodePtr::new(&node);
+                                rsx! { RefInput { ptr: ptr, id: format!("input-{}", label) } }
                             },
                             _ => rsx! { div { "Unsupported Value Type" } },
                         }

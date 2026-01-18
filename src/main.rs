@@ -24,7 +24,9 @@ fn App() -> Element {
     let mut file_path = use_signal(|| {"./example.nix".to_owned()});
     let contents = fs::read_to_string(file_path.read().clone()).expect("Could not read file");
     let mut ast = use_signal(|| {syntax::parse_file(&contents).syntax_node()});
+    let mut analysis_host = use_signal(|| ide::AnalysisHost::new_single_file(&contents));
     use_context_provider(|| ast);
+    use_context_provider(|| analysis_host);
     let root = ast.read();
     println!("AST: {}", root);
     rsx! {

@@ -1,5 +1,6 @@
 pub mod attributeSet;
 pub mod stringInput;
+pub mod refInput;
 pub mod lambda;
 use dioxus::prelude::*;
 use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
