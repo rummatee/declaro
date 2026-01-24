@@ -121,22 +121,47 @@ macro_rules! use_ast_node_strict {
     }};
 }
 
-pub fn update_node_value<N, F>(
-    node: N,
+pub fn update_node_value<F>(
+    node: SyntaxNode,
     new_value: &str,
     extract_new_node: F,
 )
 where
-    N: AstNode,
     F: Fn(&SyntaxNode) -> Option<SyntaxNode>,
 {
     let mut ast = use_context::<Signal<SyntaxNode>>();
     let new_syntax = syntax::parse_file(new_value).syntax_node();
-    if let Some(new_node) = extract_new_node(&new_syntax) {
-        let green_node = new_node.green();
+    if let Some(new_syntax) = extract_new_node(&new_syntax) {
         let new_root = SyntaxNode::new_root(
-            node.syntax().replace_with((*green_node).to_owned())
+            replace_expr(&node, new_syntax)
         );
         ast.set(new_root);
     }
 }
+
+fn replace_expr(
+    old: &SyntaxNode,
+    new: SyntaxNode,
+) -> rowan::GreenNode {
+    let parent = old.parent().expect("expr must have parent");
+
+    let mut children: Vec<rowan::NodeOrToken<rowan::GreenNode,rowan::GreenToken>> =
+        parent.green().children().map(|c| {
+            c.to_owned()
+        }).collect();
+
+    let idx = parent
+        .children_with_tokens()
+        .position(|c| c.as_node().is_some() && c.as_node().unwrap() == old)
+        .unwrap();
+
+    children.iter().for_each(|c| println!("Child: {:?}", c.kind()));
+    children[idx] = rowan::NodeOrToken::Node(new.green().into_owned());
+    println!("Replaced child at index {}, with {:?}", idx, new);
+
+
+    let new_parent = rowan::GreenNode::new(rowan::SyntaxKind(parent.kind() as u16), children);
+
+    parent.replace_with(new_parent)
+}
+

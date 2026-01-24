@@ -7,7 +7,7 @@ use crate::{use_ast_node_strict};
 use crate::ast::{update_node_value};
 
 #[component]
-pub fn RefInput(ptr: ReadOnlySignal<SyntaxNodePtr>, id: String) -> Element {
+pub fn RefInput(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
     let node = use_ast_node_strict!(ptr => syntax::ast::Ref);
     let selected = node.read().token().unwrap();
     let analysis = use_context::<Signal<(AnalysisHost, FileId)>>();
@@ -37,7 +37,7 @@ pub fn RefInput(ptr: ReadOnlySignal<SyntaxNodePtr>, id: String) -> Element {
             onchange: move |e| {
 
                 update_node_value(
-                    node.read().clone(),
+                    node.read().syntax().clone(),
                     &e.value(),
                     |syntax| {
                         <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())

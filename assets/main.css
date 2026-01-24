@@ -91,3 +91,33 @@ nav a:after {
 .lambda-parameters ul {
   list-style-type: none;
 }
+
+.expression-ui {
+  position: relative;
+  display: block;
+}
+
+.change-expression-type {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  opacity: 0.4;
+  cursor: pointer;
+}
+
+.expression-type-menu {
+  position: absolute;
+  top: 25px;
+  right: 10px;
+  background-color: #fff;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  list-style-type: none;
+  z-index: 100;
+}
+
+.expression-type-menu li {
+  padding: 8px 12px;
+  cursor: pointer;
+}

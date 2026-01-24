@@ -3,6 +3,7 @@ use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
+use crate::components::ExpressionUI;
 use crate::{use_ast_node_strict};
 use crate::ast::path_from_root;
 use crate::components::string_input::StringInput;
@@ -20,32 +21,9 @@ pub fn AttributeSetUI(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
             let label = attr.attrpath()
                 .map(|ap| ap.syntax().text().to_string())
                 .unwrap_or("unknown".to_string());
-            let valueUI = match attr.value() {
-                    Some(val) => {
-                        let node = val.syntax();
-                        match_ast!{
-                        match node {
-                            syntax::ast::String(_str_node) => {
-                                let ptr = SyntaxNodePtr::new(&node);
-                                rsx! { StringInput { ptr: ptr, id: format!("input-{}", label) } }
-                            },
-                            syntax::ast::AttrSet(_set_node) => {
-                                rsx! { Link {
-                                    class: "attribute-set-link subpage-link",
-                                    to: crate::router::Route::NodeUI{ path: path_from_root(&node)},
-                                    "AttrSet"
-                                    }
-                                }
-                            },
-                            syntax::ast::Ref(_ref_node) => {
-                                let ptr = SyntaxNodePtr::new(&node);
-                                rsx! { RefInput { ptr: ptr, id: format!("input-{}", label) } }
-                            },
-                            _ => rsx! { div { "Unsupported Value Type" } },
-                        }
-                    }},
-                    _ => return rsx! { div { "Unsupported" } }
-                };
+            let value = attr.value().unwrap();
+            let node = value.syntax();
+            let ptr = SyntaxNodePtr::new(node);
         rsx! {
             div {
                 class: "attribute-item",
@@ -53,7 +31,7 @@ pub fn AttributeSetUI(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
                     class: "attribute-label",
                     "{label}"
                 }
-                {valueUI}
+                ExpressionUI { ptr: ptr }
             }
         }
     });

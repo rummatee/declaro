@@ -24,6 +24,7 @@ fn App() -> Element {
     let mut ast = use_signal(|| {syntax::parse_file(&contents).syntax_node()});
     let analysis_host = hooks::use_derivation(move || {
         let root = ast.read();
+        println!("AST: {}", root);
         let sourceFile = match_ast!{
             match root {
                 syntax::ast::SourceFile(src) => src,
@@ -38,7 +39,6 @@ fn App() -> Element {
     use_context_provider(|| ast);
     use_context_provider(|| analysis_host);
     let root = ast.read();
-    println!("AST: {}", root);
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS } 
