@@ -14,7 +14,7 @@ pub use lambda::*;
 use string_input::StringInput;
 use ref_input::RefInput;
 
-use crate::ast::{collect_path, resolve_path, AstPath, update_node_value};
+use crate::ast::{collect_path, resolve_path, AstPath, update_node_value, path_from_root};
 use closure::closure;
 
 #[derive(Clone)]
@@ -31,22 +31,46 @@ pub fn NodeUI(path: ReadOnlySignal<AstPath>) -> Element {
         println!("NodeUI rendering node: {}", node.to_string());
         SyntaxNodePtr::new(&node)
     });
+    let level: u16 = 0;
     rsx! {
         Nav { path: path() }
-        ExpressionUI { ptr: ptr }
+        ExpressionUI { ptr: ptr, nesting_level: level }
+    }
+}
+
+fn decide_link_or_element(_node: &SyntaxNode, nesting_level: u16) -> bool {
+    nesting_level > 1
+}
+
+fn link_or_element(node: &SyntaxNode, nesting_level: u16, element: Element) -> Element {
+    if decide_link_or_element(node, nesting_level) {
+        rsx! {
+                Link {
+                    class: "subpage-link",
+                    to: crate::router::Route::NodeUI{ path: path_from_root(node)},
+                    "Link"
+                }
+            }
+        } else {
+            element
     }
 }
 
 #[component]
-pub fn ExpressionUI(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
+pub fn ExpressionUI(ptr: ReadOnlySignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let ast = use_context::<Signal<SyntaxNode>>();
     let mut menu_open = use_signal(|| false);
     let node = ptr.read().to_node(&ast.read());
     let node_ref = node.clone();
+    let next_level = nesting_level + 1;
     let body = match_ast! {
         match node_ref {
-            syntax::ast::AttrSet(_) => rsx! {  AttributeSetUI { ptr:ptr }  },
-            syntax::ast::Lambda(_) => rsx! { LambdaUI { ptr:ptr }  },
+            syntax::ast::AttrSet(_) => {
+                link_or_element(&node, nesting_level, rsx! {  AttributeSetUI { ptr:ptr, nesting_level: next_level }  })
+            },
+            syntax::ast::Lambda(_) => {
+                link_or_element(&node, nesting_level, rsx! { LambdaUI { ptr:ptr, nesting_level: next_level }  })
+            },
             syntax::ast::String(_) => rsx! { StringInput { ptr:ptr } },
             syntax::ast::Ref(_) => rsx! { RefInput { ptr:ptr } },
             _ => rsx! {},

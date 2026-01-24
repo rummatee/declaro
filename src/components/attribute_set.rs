@@ -10,7 +10,7 @@ use crate::components::string_input::StringInput;
 use crate::components::ref_input::RefInput;
 
 #[component]
-pub fn AttributeSetUI(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
+pub fn AttributeSetUI(ptr: ReadOnlySignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let set = use_ast_node_strict!(ptr => syntax::ast::AttrSet);
     let elements = set.read().bindings()
         .filter_map(|binding| match binding {
@@ -31,7 +31,7 @@ pub fn AttributeSetUI(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
                     class: "attribute-label",
                     "{label}"
                 }
-                ExpressionUI { ptr: ptr }
+                ExpressionUI { ptr: ptr, nesting_level: nesting_level }
             }
         }
     });
