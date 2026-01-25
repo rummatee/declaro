@@ -7,11 +7,16 @@
   imports = [
     dream2nix.modules.dream2nix.rust-cargo-lock
     dream2nix.modules.dream2nix.rust-cargo-vendor
-    dream2nix.modules.dream2nix.buildRustPackage
+    dream2nix.modules.dream2nix.rust-crane
   ];
 
   mkDerivation = {
     src = ./.;
+  };
+
+  rust-crane = {
+    buildProfile = "dev";
+    runTests = false;
   };
 
   deps = {nixpkgs, ...}: {
