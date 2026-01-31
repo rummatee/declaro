@@ -8,8 +8,6 @@
   nested = {
     attribute = "value";
   };
-  a.b.c = 42;
-  listExample = [1 2 3 4 5];
-  more = variable2;
-  combined = "${variable1}-${variable2}";
+  a.b.c = "deepValue";
+  reference = variable2;
 }

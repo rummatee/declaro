@@ -34,6 +34,7 @@ pub fn RefInput(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
 
     rsx! {
         select { 
+            class: "ref-input simple-inout",
             onchange: move |e| {
 
                 update_node_value(

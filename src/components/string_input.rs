@@ -17,7 +17,7 @@ pub fn StringInput(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
     }).collect::<Vec<String>>().join("");
     rsx! {
         input {
-            class: "string-input",
+            class: "string-input simple-input",
             value: value,
             oninput: move |e| {
                 println!("New value: {}", e.value());

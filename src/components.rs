@@ -76,6 +76,15 @@ pub fn ExpressionUI(ptr: ReadOnlySignal<SyntaxNodePtr>, nesting_level: u16) -> E
             _ => rsx! {},
         }
     };
+    let extra_classes = match_ast! {
+        match node_ref {
+            syntax::ast::AttrSet(_) => if decide_link_or_element(&node, nesting_level) {"atom"} else {"composed"},
+            syntax::ast::Lambda(_) => if decide_link_or_element(&node, nesting_level) {"atom"} else {"composed"},
+            syntax::ast::String(_) => "atom",
+            syntax::ast::Ref(_) => "atom",
+            _ => "",
+        }
+    };
     let menu_items = vec![
         ("Attribute Set", "{}") ,
         ("Lambda", "{}:{}"),
@@ -103,7 +112,7 @@ pub fn ExpressionUI(ptr: ReadOnlySignal<SyntaxNodePtr>, nesting_level: u16) -> E
     });
     rsx! {
         div {
-            class: "expression-ui",
+            class: "expression-ui ".to_owned() + extra_classes,
             div {
                 onclick: move |_| {
                     menu_open.set(!menu_open());
