@@ -2,6 +2,8 @@ use dioxus::prelude::*;
 use syntax::{match_ast};
 use syntax::ast::AstNode;
 use std::fs;
+use std::path::PathBuf;
+use rfd::AsyncFileDialog;
 
 mod ast;
 mod components;
@@ -19,9 +21,11 @@ fn main() {
 
 #[component]
 fn App() -> Element {
-    let mut file_path = use_signal(|| {"./example.nix".to_owned()});
-    let contents = fs::read_to_string(file_path.read().clone()).expect("Could not read file");
-    let mut ast = use_signal(|| {syntax::parse_file(&contents).syntax_node()});
+    let mut file_path = use_signal(|| {PathBuf::from("./example.nix")});
+    let mut ast = hooks::use_derivation(move || {
+        let contents = fs::read_to_string(file_path.read().clone()).expect("Could not read file");
+        syntax::parse_file(&contents).syntax_node()
+    });
     let analysis_host = hooks::use_derivation(move || {
         let root = ast.read();
         println!("AST: {}", root);
@@ -43,23 +47,18 @@ fn App() -> Element {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS } 
         div {
-            class: "app-container",
-            h1 { "Declaro" }
-            input {
-                type: "file",
+            class: "menu",
+            button {
                 id: "open-file",
-                multiple: "false",
                 id: "open-file",
-                accept: ".nix",
-                onchange: move |e| {
-                    if let Some(file) = e.files() {
-                        let files = file.files();
-                        if let Some(path) = files.iter().next() {
-                            file_path.set(path.clone());
-                            let new_contents = fs::read_to_string(&path.clone()).expect("Could not read file");
-                            ast.set(syntax::parse_file(&new_contents).syntax_node());
-                        }
-                    }
+                onclick: move |_| async move {
+                    let file = AsyncFileDialog::new()
+                        .add_filter("Nix files", &["nix"])
+                        .pick_file()
+                        .await.unwrap();
+                    let path = file.clone().path().to_path_buf();
+
+                    file_path.set(path.clone());
                 },
                 "Open"
             }
@@ -80,6 +79,9 @@ fn App() -> Element {
                 id: "save-file",
                 "Save"
             }
+        }
+        div {
+            class: "app-container",
             Router::<router::Route> {}
         }
     }

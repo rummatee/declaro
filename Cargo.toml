@@ -15,6 +15,7 @@ ide = { git = "https://github.com/rummatee/nil" }
 rowan = "0.16.1"
 dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version = "0.0.1", default-features = false }
 dioxus-free-icons = { version = "0.9", features = ["font-awesome-solid"] }
+rfd = "0.17.2"
 
 [features]
 default = ["desktop"]
