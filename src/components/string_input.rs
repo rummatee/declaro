@@ -7,7 +7,7 @@ use crate::{use_ast_node_strict};
 use crate::ast::{update_node_value};
 
 #[component]
-pub fn StringInput(ptr: ReadOnlySignal<SyntaxNodePtr>) -> Element {
+pub fn StringInput(ptr: ReadSignal<SyntaxNodePtr>) -> Element {
     let node = use_ast_node_strict!(ptr => syntax::ast::String);
     let value = node.read().string_parts().filter_map(|part| {
         match part {

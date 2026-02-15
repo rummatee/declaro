@@ -1,16 +1,13 @@
 use syntax::ast::{HasBindings};
-use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
+use syntax::{SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
 use crate::components::ExpressionUI;
 use crate::{use_ast_node_strict};
-use crate::ast::path_from_root;
-use crate::components::string_input::StringInput;
-use crate::components::ref_input::RefInput;
 
 #[component]
-pub fn AttributeSetUI(ptr: ReadOnlySignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
+pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let set = use_ast_node_strict!(ptr => syntax::ast::AttrSet);
     let elements = set.read().bindings()
         .filter_map(|binding| match binding {

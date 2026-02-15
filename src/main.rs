@@ -22,7 +22,7 @@ fn main() {
 #[component]
 fn App() -> Element {
     let mut file_path = use_signal(|| {PathBuf::from("./example.nix")});
-    let mut ast = hooks::use_derivation(move || {
+    let ast = hooks::use_derivation(move || {
         let contents = fs::read_to_string(file_path.read().clone()).expect("Could not read file");
         syntax::parse_file(&contents).syntax_node()
     });
@@ -42,10 +42,9 @@ fn App() -> Element {
     });
     use_context_provider(|| ast);
     use_context_provider(|| analysis_host);
-    let root = ast.read();
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
-        document::Link { rel: "stylesheet", href: MAIN_CSS } 
+        document::Stylesheet { href: MAIN_CSS } 
         div {
             class: "menu",
             button {

@@ -1,5 +1,4 @@
 use syntax::{SyntaxNode};
-use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -17,14 +17,8 @@ use ref_input::RefInput;
 use crate::ast::{collect_path, resolve_path, AstPath, update_node_value, path_from_root};
 use closure::closure;
 
-#[derive(Clone)]
-struct NavContext {
-    current_node: ReadOnlySignal<AstPath>,
-}
-
 #[component]
-pub fn NodeUI(path: ReadOnlySignal<AstPath>) -> Element {
-    use_context_provider(|| NavContext{ current_node: path.clone() });
+pub fn NodeUI(path: ReadSignal<AstPath>) -> Element {
     let ast = use_context::<Signal<SyntaxNode>>();
     let ptr = use_memo(move || {
         let node = resolve_path(&ast.read(), &path.read()).unwrap();
@@ -57,7 +51,7 @@ fn link_or_element(node: &SyntaxNode, nesting_level: u16, element: Element) -> E
 }
 
 #[component]
-pub fn ExpressionUI(ptr: ReadOnlySignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
+pub fn ExpressionUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let ast = use_context::<Signal<SyntaxNode>>();
     let mut menu_open = use_signal(|| false);
     let node = ptr.read().to_node(&ast.read());

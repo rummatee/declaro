@@ -11,6 +11,7 @@
     dream2nix.url = "github:nix-community/dream2nix";
     nixpkgs.follows = "dream2nix/nixpkgs";
     rust-overlay.url = "github:oxalica/rust-overlay";
+    nixpkgs-unstable.url = "nixpkgs/nixos-unstable";
   };
 
   outputs = {
@@ -18,6 +19,7 @@
     dream2nix,
     nixpkgs,
     rust-overlay,
+    nixpkgs-unstable,
   }: let
     # A helper that helps us define the attributes below for
     # all systems we care about.
@@ -53,6 +55,9 @@
         inherit system;
         overlays = [(import rust-overlay)];
       };
+      pkgs-unstable = import nixpkgs-unstable {
+        inherit system;
+      };
       declaro = self.packages.${system}.default;
     in {
       default = pkgs.mkShell {
@@ -61,7 +66,7 @@
           (pkgs.rust-bin.stable.latest.default.override {
             extensions = ["rust-src"];
           })
-          dioxus-cli
+          pkgs-unstable.dioxus-cli
           pkg-config
           glib
           atk
@@ -73,6 +78,7 @@
           webkitgtk_4_1
           libiconv
           xdotool
+          openssl
         ];
         RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
         shellHook = with pkgs; ''

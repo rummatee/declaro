@@ -6,7 +6,7 @@ use crate::components::ExpressionUI;
 use crate::use_ast_node_strict;
 
 #[component]
-pub fn LambdaUI(ptr: ReadOnlySignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
+pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let lambda = use_ast_node_strict!(ptr => syntax::ast::Lambda);
     let params = lambda.read().param().unwrap().pat().unwrap().fields();
 
