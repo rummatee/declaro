@@ -16,14 +16,17 @@ rowan = "0.16.1"
 dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version = "0.0.1", default-features = false }
 dioxus-free-icons = { version = "0.10", features = ["font-awesome-solid"] }
 rfd = "0.17.2"
+dioxus-motion = { version = "0.3.0", optional = true, default-features = false }
 
 [features]
 default = ["desktop"]
-web = ["dioxus/web"]
+web = ["dioxus/web", "dioxus-motion/web", "dioxus-motion/transitions"]
 desktop = [
     "dioxus/desktop",
+    "dioxus-motion/desktop",
+    "dioxus-motion/transitions",
 ]
-mobile = ["dioxus/mobile"]
+mobile = ["dioxus/mobile", "dioxus-motion/desktop", "dioxus-motion/transitions"]
 
 [profile]
 
