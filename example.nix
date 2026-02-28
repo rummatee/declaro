@@ -10,4 +10,5 @@
   };
   a.b.c = "deepValue";
   reference = variable2;
+  arithmetic = 1 + 3;
 }

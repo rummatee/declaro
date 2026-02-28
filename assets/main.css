@@ -122,6 +122,15 @@ nav a:after {
   gap: 2em;
 }
 
+.fallback-expression-input {
+  width: 20em;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  background-color: #fff;
+  color: #2c2f36;
+  font-size: 1em;
+}
+
 .expression-ui {
   position: relative;
   display: block;
