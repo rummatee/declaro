@@ -67,6 +67,7 @@
             extensions = ["rust-src"];
           })
           pkgs-unstable.dioxus-cli
+          cargo-insta
           pkg-config
           glib
           atk
@@ -79,6 +80,7 @@
           libiconv
           xdotool
           openssl
+          python3
         ];
         RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
         shellHook = with pkgs; ''

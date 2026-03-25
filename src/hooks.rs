@@ -1,3 +1,5 @@
+use crate::mockable_functions;
+mockable_functions! {
 use dioxus::prelude::*;
 
 pub fn use_derivation<T, F>(mut derive: F) -> Signal<T>
@@ -12,4 +14,9 @@ where
     });
 
     value
+}
+
+pub fn use_analysis_host() -> Signal<(ide::AnalysisHost, ide::FileId)> {
+    use_context::<Signal<(ide::AnalysisHost, ide::FileId)>>()
+}
 }

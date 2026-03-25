@@ -11,6 +11,28 @@ mod router;
 mod hooks;
 
 
+#[macro_export]
+macro_rules! mockable_functions {
+    ( $( $item:item )* ) => {
+        #[cfg(test)]
+        use mockall::automock;
+        use cfg_if::cfg_if;
+
+        #[cfg_attr(test, automock)]
+        pub mod functions {
+            use super::*;
+            $( $item )*
+        }
+
+        cfg_if! {
+            if #[cfg(test)] {
+                pub use mock_functions::*;
+            } else {
+                pub use functions::*;
+            }
+        }
+    };
+}
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
