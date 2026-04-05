@@ -68,6 +68,7 @@
           })
           pkgs-unstable.dioxus-cli
           cargo-insta
+          cargo-tarpaulin
           pkg-config
           glib
           atk

@@ -3,12 +3,11 @@ use syntax::{SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
-use crate::{use_ast_node_strict};
-use crate::ast::{update_node_value};
+use crate::ast::functions::{update_node_value, use_ast_node};
 
 #[component]
 pub fn StringInput(ptr: ReadSignal<SyntaxNodePtr>) -> Element {
-    let node = use_ast_node_strict!(ptr => syntax::ast::String);
+    let node = use_ast_node::<syntax::ast::String>(ptr);
     let value = node.read().string_parts().filter_map(|part| {
         match part {
         syntax::ast::StringPart::Fragment(text) => Some(text.text().to_string()),

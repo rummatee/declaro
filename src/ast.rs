@@ -1,14 +1,18 @@
 use syntax::{SyntaxNode, SyntaxNodePtr, NixLanguage, ast::AstNode};
 use dioxus::prelude::*;
 
+#[cfg(test)]
+use mockall::automock;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AstPath {
     pub indices: Vec<usize>,
 }
 
 
-use crate::mockable_functions;
-mockable_functions! {
+#[cfg_attr(test, automock)]
+pub mod functions {
+    use super::*;
     pub fn path_from_root(node: &SyntaxNode) -> AstPath {
         let mut indices = Vec::new();
         let mut current = node.clone();
@@ -101,7 +105,7 @@ mockable_functions! {
         use_context::<Signal<SyntaxNode>>()
     }
 
-    pub fn use_ast_node_generic<T>(ptr: ReadSignal<SyntaxNodePtr>) -> Memo<T>
+    pub fn use_ast_node<T>(ptr: ReadSignal<SyntaxNodePtr>) -> Memo<T>
     where
         T: AstNode<Language = NixLanguage> + PartialEq + 'static,
     {
@@ -163,12 +167,4 @@ pub struct ParseAstPathError;
 pub struct IndexedNode {
     pub index: AstPath,
     pub node: SyntaxNode,
-}
-
-
-#[macro_export]
-macro_rules! use_ast_node_strict {
-    ($ptr:expr => $ty:ty) => {
-        $crate::ast::use_ast_node_generic::<$ty>($ptr)
-    };
 }

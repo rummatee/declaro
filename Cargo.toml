@@ -19,6 +19,7 @@ rfd = "0.17.2"
 dioxus-motion = { version = "0.3.0", optional = true, default-features = false }
 cfg-if = "1.0.4"
 mockall_double = "0.3.1"
+thiserror = "2.0.18"
 
 [features]
 default = ["desktop"]
@@ -46,3 +47,4 @@ inherits = "dev"
 dioxus-ssr = "0.7.3"
 insta = "1.46.3"
 mockall = "0.14"
+serial_test = "3.4.0"

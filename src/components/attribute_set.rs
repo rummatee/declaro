@@ -4,11 +4,11 @@ use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
 use crate::components::ExpressionUI;
-use crate::{use_ast_node_strict};
+use crate::ast::functions::use_ast_node;
 
 #[component]
 pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
-    let set = use_ast_node_strict!(ptr => syntax::ast::AttrSet);
+    let set = use_ast_node::<syntax::ast::AttrSet>(ptr);
     let elements = set.read().bindings()
         .filter_map(|binding| match binding {
             syntax::ast::Binding::AttrpathValue(attr) => Some(attr),

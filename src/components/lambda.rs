@@ -3,11 +3,11 @@ use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
 use crate::components::ExpressionUI;
-use crate::use_ast_node_strict;
+use crate::ast::functions::use_ast_node;
 
 #[component]
 pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
-    let lambda = use_ast_node_strict!(ptr => syntax::ast::Lambda);
+    let lambda = use_ast_node::<syntax::ast::Lambda>(ptr);
     let params = lambda.read().param().unwrap().pat().unwrap().fields();
 
     let param_elements = params.map(|param| {

@@ -10,7 +10,8 @@ use crate::router::Route;
 
 use expression::ExpressionUI;
 
-use crate::ast::{collect_path, resolve_path, AstPath, update_node_value, path_from_root};
+use crate::ast::functions::{collect_path, resolve_path, update_node_value, path_from_root};
+use crate::ast::AstPath;
 
 #[component]
 pub fn NodeUI(path: ReadSignal<AstPath>) -> Element {

@@ -7,8 +7,8 @@ use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_solid_icons::FaGear;
 use closure::closure;
 
-use crate::{use_ast_node_strict};
-use crate::ast::{update_node_value, path_from_root};
+use crate::ast::functions::use_ast_node;
+use crate::ast::functions::{update_node_value, path_from_root};
 
 use crate::components::attribute_set::AttributeSetUI;
 use crate::components::string_input::StringInput;
@@ -164,7 +164,7 @@ pub fn ExpressionUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Eleme
 
 #[component]
 pub fn FallbackExpressionUI(ptr: ReadSignal<SyntaxNodePtr>) -> Element {
-    let node = use_ast_node_strict!(ptr => syntax::ast::Expr);
+    let node = use_ast_node::<syntax::ast::Expr>(ptr);
     let value = node.read().syntax().text().to_string();
     rsx! {
         textarea {

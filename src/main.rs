@@ -8,31 +8,8 @@ use rfd::AsyncFileDialog;
 mod ast;
 mod components;
 mod router;
-mod hooks;
+mod utils;
 
-
-#[macro_export]
-macro_rules! mockable_functions {
-    ( $( $item:item )* ) => {
-        #[cfg(test)]
-        use mockall::automock;
-        use cfg_if::cfg_if;
-
-        #[cfg_attr(test, automock)]
-        pub mod functions {
-            use super::*;
-            $( $item )*
-        }
-
-        cfg_if! {
-            if #[cfg(test)] {
-                pub use mock_functions::*;
-            } else {
-                pub use functions::*;
-            }
-        }
-    };
-}
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
@@ -44,11 +21,11 @@ fn main() {
 #[component]
 fn App() -> Element {
     let mut file_path = use_signal(|| {PathBuf::from("./example.nix")});
-    let ast = hooks::use_derivation(move || {
+    let ast = utils::hooks::use_derivation(move || {
         let contents = fs::read_to_string(file_path.read().clone()).expect("Could not read file");
         syntax::parse_file(&contents).syntax_node()
     });
-    let analysis_host = hooks::use_derivation(move || {
+    let analysis_host = utils::hooks::use_derivation(move || {
         let root = ast.read();
         println!("AST: {}", root);
         let sourceFile = match_ast!{
