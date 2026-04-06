@@ -15,8 +15,6 @@ use crate::utils::hooks;
 #[cfg(test)]
 use mockall::automock;
 
-
-
 #[component]
 pub fn RefInput(ptr: ReadSignal<SyntaxNodePtr>) -> Element {
     let analysis = hooks::use_analysis_host();

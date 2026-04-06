@@ -2,7 +2,7 @@ use syntax::{SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
-use crate::components::ExpressionUI;
+use crate::components::expression::components::ExpressionUI;
 use crate::ast::functions::use_ast_node;
 
 #[component]

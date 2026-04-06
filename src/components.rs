@@ -8,7 +8,7 @@ use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use crate::router::Route;
 
-use expression::ExpressionUI;
+use expression::components::ExpressionUI;
 
 use crate::ast::functions::{collect_path, resolve_path, update_node_value, path_from_root};
 use crate::ast::AstPath;
