@@ -1,0 +1,5 @@
+---
+source: src/components/lambda.rs
+expression: html
+---
+<div class="lambda-node"><h3>Lambda Function</h3><div class="lambda-parameters"><h4>Parameters:</h4><ul><li>var1</li><li>var2 ? &#34;default&#34; </li></ul></div><div>ExpressionUI for props: ExpressionUIProps { ptr: SyntaxNodePtr { kind: ATTR_SET, range: 38..40 }, nesting_level: 1 }</div></div>
