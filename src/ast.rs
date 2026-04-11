@@ -124,7 +124,7 @@ pub mod functions {
     where
         F: Fn(&SyntaxNode) -> Option<SyntaxNode> + 'static,
     {
-        let mut ast = use_context::<Signal<SyntaxNode>>();
+        let mut ast = use_syntax_node();
         let new_syntax = syntax::parse_file(new_value).syntax_node();
         if let Some(new_syntax) = extract_new_node(&new_syntax) {
             let new_root = SyntaxNode::new_root(
@@ -167,4 +167,50 @@ pub struct ParseAstPathError;
 pub struct IndexedNode {
     pub index: AstPath,
     pub node: SyntaxNode,
+}
+
+impl std::fmt::Display for IndexedNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "IndexedNode {{ index: {}, node: {:?} }}", self.index, self.node)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_ast_path_roundtrip() {
+        let code = r#"
+            let x = 1;
+            in {
+                y = {
+                    z = 2;
+                };
+            }
+        "#;
+        let ast = syntax::parse_file(code).syntax_node();
+        let path = AstPath::from_str("0.1.0").expect("Failed to parse AstPath");
+        let node = functions::resolve_path(&ast, &path).expect("Node should exist");
+        assert_snapshot!(node);
+        let collected_nodes = functions::collect_path(ast.clone(), &path);
+        assert_snapshot!(collected_nodes.iter().map(|n| format!("{}", n)).collect::<String>());
+        let path_from_root = functions::path_from_root(&node);
+        assert_eq!(path, path_from_root);
+    }
+
+    #[test]
+    fn test_empty_ast_path() {
+        let path = AstPath::from_str("").expect("Failed to parse empty AstPath");
+        assert_eq!(path.indices.len(), 0);
+    }
+
+    #[test]
+    fn test_invalid_ast_path() {
+        let result = AstPath::from_str("0.a.1");
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap().to_string(), "failed to parse AstPath");
+    }
 }
