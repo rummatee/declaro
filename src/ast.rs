@@ -1,5 +1,6 @@
 use syntax::{SyntaxNode, SyntaxNodePtr, NixLanguage, ast::AstNode};
 use dioxus::prelude::*;
+use mockall_double::double;
 
 #[cfg(test)]
 use mockall::automock;
@@ -9,10 +10,33 @@ pub struct AstPath {
     pub indices: Vec<usize>,
 }
 
+#[cfg_attr(test, automock)]
+pub mod hooks {
+    use super::*;
+
+    pub fn use_syntax_node() -> Signal<SyntaxNode> {
+        use_context::<Signal<SyntaxNode>>()
+    }
+
+    pub fn use_ast_node<T>(ptr: ReadSignal<SyntaxNodePtr>) -> Memo<T>
+    where
+        T: AstNode<Language = NixLanguage> + PartialEq + 'static,
+    {
+        let ast = use_syntax_node();
+        use_memo(move || {
+            let syntax = ptr.read().to_node(&ast.read());
+            T::cast(syntax).expect("Failed to cast syntax node to expected type")
+        })
+    }
+}
 
 #[cfg_attr(test, automock)]
 pub mod functions {
     use super::*;
+
+    #[double]
+    use super::hooks;
+
     pub fn path_from_root(node: &SyntaxNode) -> AstPath {
         let mut indices = Vec::new();
         let mut current = node.clone();
@@ -101,21 +125,6 @@ pub mod functions {
         }
     }
 
-    pub fn use_syntax_node() -> Signal<SyntaxNode> {
-        use_context::<Signal<SyntaxNode>>()
-    }
-
-    pub fn use_ast_node<T>(ptr: ReadSignal<SyntaxNodePtr>) -> Memo<T>
-    where
-        T: AstNode<Language = NixLanguage> + PartialEq + 'static,
-    {
-        let ast = use_syntax_node();
-        use_memo(move || {
-            let syntax = ptr.read().to_node(&ast.read());
-            T::cast(syntax).expect("Failed to cast syntax node to expected type")
-        })
-    }
-
     pub fn update_node_value<F>(
         node: SyntaxNode,
         new_value: &str,
@@ -124,7 +133,7 @@ pub mod functions {
     where
         F: Fn(&SyntaxNode) -> Option<SyntaxNode> + 'static,
     {
-        let mut ast = use_syntax_node();
+        let mut ast = hooks::use_syntax_node();
         let new_syntax = syntax::parse_file(new_value).syntax_node();
         if let Some(new_syntax) = extract_new_node(&new_syntax) {
             let new_root = SyntaxNode::new_root(
@@ -212,5 +221,36 @@ mod tests {
         let result = AstPath::from_str("0.a.1");
         assert!(result.is_err());
         assert_eq!(result.err().unwrap().to_string(), "failed to parse AstPath");
+    }
+
+    #[test]
+    fn test_update_node_value() {
+        // drop into dioxus environment to allow SIgnal creation
+        let mut vdom = VirtualDom::new(|| {
+            let code = r#"
+                {
+                    a = 1;
+                    b = "b";
+                }
+            "#;
+            let ast = syntax::parse_file(code).syntax_node();
+            let ast_signal = Signal::new(ast.clone());
+            let use_syntax_node_ctx = mock_hooks::use_syntax_node_context();
+            use_syntax_node_ctx.expect()
+                .return_const_st( ast_signal );
+            let node = functions::resolve_path(&ast, &AstPath::from_str("0.1.1").unwrap()).expect("Node should exist");
+            let new_value = "2";
+            functions::update_node_value(node.clone(), new_value, |new_syntax| {
+                <syntax::ast::SourceFile as AstNode>::cast(new_syntax.clone())
+                    .and_then(|sf| sf.expr())
+                    .map(|expr| expr.syntax().clone())
+            });
+            let updated_ast = ast_signal.read().clone();
+            let updated_node = functions::resolve_path(&updated_ast, &AstPath::from_str("0.1.1").unwrap()).expect("Node should exist");
+            assert_eq!(updated_node.to_string(), "2");
+            rsx! { "success" }
+        });
+        vdom.rebuild_in_place();
+        assert!(dioxus_ssr::render(&vdom).contains("success"));
     }
 }

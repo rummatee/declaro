@@ -1,0 +1,5 @@
+---
+source: src/ast.rs
+expression: "collected_nodes.iter().map(|n| format!(\"{}\", n)).collect::<String>()"
+---
+IndexedNode { index: 0, node: SOURCE_FILE@0..131 }IndexedNode { index: 0, node: LET_IN@13..131 }IndexedNode { index: 0.1, node: ATTR_SET@39..122 }IndexedNode { index: 0.1.0, node: ATTR_PATH_VALUE@57..108 }

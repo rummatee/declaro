@@ -9,11 +9,11 @@ use crate::components::expression::components::ExpressionUI;
 use crate::components::expression::components as expression_components;
 
 #[double]
-use crate::ast::functions as ast_functions;
+use crate::ast::hooks as ast_hooks;
 
 #[component]
 pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
-    let lambda = ast_functions::use_ast_node::<syntax::ast::Lambda>(ptr);
+    let lambda = ast_hooks::use_ast_node::<syntax::ast::Lambda>(ptr);
     let params = lambda.read().param().unwrap().pat().unwrap().fields();
 
     let param_elements = params.map(|param| {
@@ -47,7 +47,7 @@ pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
 mod tests {
     use insta::assert_snapshot;
     use super::*;
-    use crate::ast::mock_functions::use_ast_node_context;
+    use crate::ast::mock_hooks::use_ast_node_context;
     use crate::components::expression::mock_components::ExpressionUI_context;
 
     #[test]

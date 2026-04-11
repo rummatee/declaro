@@ -7,7 +7,7 @@ use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_solid_icons::FaGear;
 use closure::closure;
 
-use crate::ast::functions::use_ast_node;
+use crate::ast::hooks::use_ast_node;
 use crate::ast::functions::{update_node_value, path_from_root};
 
 use crate::components::attribute_set::AttributeSetUI;

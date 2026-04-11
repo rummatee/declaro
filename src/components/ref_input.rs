@@ -10,6 +10,8 @@ use util_functions as utils;
 #[double]
 use crate::ast::functions as ast_functions;
 #[double]
+use crate::ast::hooks as ast_hooks;
+#[double]
 use crate::utils::hooks;
 
 #[cfg(test)]
@@ -18,7 +20,7 @@ use mockall::automock;
 #[component]
 pub fn RefInput(ptr: ReadSignal<SyntaxNodePtr>) -> Element {
     let analysis = hooks::use_analysis_host();
-    let node = ast_functions::use_ast_node::<syntax::ast::Ref>(ptr);
+    let node = ast_hooks::use_ast_node::<syntax::ast::Ref>(ptr);
     let selected = node.read().token().unwrap();
 
     let bindings = utils::get_bindings_in_scope(node.read().syntax(), &analysis.read())?;
@@ -88,7 +90,7 @@ mod tests {
     use insta::assert_snapshot;
     use serial_test::serial;
     use super::*;
-    use crate::ast::mock_functions::use_ast_node_context;
+    use crate::ast::mock_hooks::use_ast_node_context;
 
     #[test]
     #[serial]

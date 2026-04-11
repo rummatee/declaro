@@ -1,0 +1,7 @@
+---
+source: src/ast.rs
+expression: node
+---
+y = {
+                    z = 2;
+                };

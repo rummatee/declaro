@@ -3,7 +3,8 @@ use syntax::{SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 
-use crate::ast::functions::{update_node_value, use_ast_node};
+use crate::ast::functions::update_node_value;
+use crate::ast::hooks::use_ast_node;
 
 #[component]
 pub fn StringInput(ptr: ReadSignal<SyntaxNodePtr>) -> Element {

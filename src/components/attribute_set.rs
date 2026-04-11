@@ -8,11 +8,11 @@ use mockall_double::double;
 use crate::components::expression::components as expression_components;
 
 #[double]
-use crate::ast::functions as ast_functions;
+use crate::ast::hooks as ast_hooks;
 
 #[component]
 pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
-    let set = ast_functions::use_ast_node::<syntax::ast::AttrSet>(ptr);
+    let set = ast_hooks::use_ast_node::<syntax::ast::AttrSet>(ptr);
     let elements = set.read().bindings()
         .filter_map(|binding| match binding {
             syntax::ast::Binding::AttrpathValue(attr) => Some(attr),
@@ -48,7 +48,7 @@ pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Ele
 mod tests {
     use insta::assert_snapshot;
     use super::*;
-    use crate::ast::mock_functions::use_ast_node_context;
+    use crate::ast::mock_hooks::use_ast_node_context;
     use crate::components::expression::mock_components::ExpressionUI_context;
 
     #[test]
