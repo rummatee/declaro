@@ -17,41 +17,52 @@ use crate::utils::hooks;
 #[cfg(test)]
 use mockall::automock;
 
-#[component]
-pub fn RefInput(ptr: ReadSignal<SyntaxNodePtr>) -> Element {
-    let analysis = hooks::use_analysis_host();
-    let node = ast_hooks::use_ast_node::<syntax::ast::Ref>(ptr);
-    let selected = node.read().token().unwrap();
+#[derive(Props, PartialEq, Clone)]
+pub struct RefInputProps {
+    ptr: ReadSignal<SyntaxNodePtr>,
+}
 
-    let bindings = utils::get_bindings_in_scope(node.read().syntax(), &analysis.read())?;
+#[cfg_attr(test, automock)]
+pub mod components { 
 
-    let options = bindings
-        .iter()
-        .map(|label| {
-            rsx! {
-                option {
-                    selected: label == selected.text(),
-                    { label.clone() }
-                }
-            }
-        });
+    use super::*;
 
-    rsx! {
-        select { 
-            class: "ref-input simple-inout",
-            onchange: move |e| {
+    pub fn RefInput(props: RefInputProps) -> Element {
+        let ptr = props.ptr;
+        let analysis = hooks::use_analysis_host();
+        let node = ast_hooks::use_ast_node::<syntax::ast::Ref>(ptr);
+        let selected = node.read().token().unwrap();
 
-                ast_functions::update_node_value(
-                    node.read().syntax().clone(),
-                    &e.value(),
-                    |syntax| {
-                        <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                            .and_then(|sf| sf.expr())
-                            .map(|expr| expr.syntax().clone())
+        let bindings = utils::get_bindings_in_scope(node.read().syntax(), &analysis.read())?;
+
+        let options = bindings
+            .iter()
+            .map(|label| {
+                rsx! {
+                    option {
+                        selected: label == selected.text(),
+                        { label.clone() }
                     }
-                );
-            },
-            {options}
+                }
+            });
+
+        rsx! {
+            select { 
+                class: "ref-input simple-inout",
+                onchange: move |e| {
+
+                    ast_functions::update_node_value(
+                        node.read().syntax().clone(),
+                        &e.value(),
+                        |syntax| {
+                            <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
+                                .and_then(|sf| sf.expr())
+                                .map(|expr| expr.syntax().clone())
+                        }
+                    );
+                },
+                {options}
+            }
         }
     }
 }
@@ -118,7 +129,7 @@ mod tests {
             let syntax_node = syntax::parse_file("foo").syntax_node();
             let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(&syntax_node));
 
-             rsx! { RefInput { ptr: ptr_signal } }
+             rsx! { components::RefInput { ptr: ptr_signal } }
         });
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);
@@ -150,7 +161,7 @@ mod tests {
         let mut vdom = VirtualDom::new(|| {
             let syntax_node = syntax::parse_file("foo").syntax_node();
             let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(&syntax_node));
-             rsx! { RefInput { ptr: ptr_signal } }
+             rsx! { components::RefInput { ptr: ptr_signal } }
         });
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);

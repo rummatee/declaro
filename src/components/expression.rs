@@ -6,14 +6,19 @@ use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_solid_icons::FaGear;
 use closure::closure;
+use mockall_double::double;
 
-use crate::ast::hooks::use_ast_node;
+#[double]
+use crate::ast::hooks as ast_hooks;
+
 use crate::ast::functions::{update_node_value, path_from_root};
 
 use crate::components::attribute_set::AttributeSetUI;
 use crate::components::string_input::StringInput;
-use crate::components::ref_input::RefInput;
 use crate::components::lambda::LambdaUI;
+
+#[double]
+use crate::components::ref_input::components as ref_input_components;
 
 #[cfg(test)]
 use mockall::automock;
@@ -71,7 +76,7 @@ pub mod components {
     pub fn ExpressionUI(props: ExpressionUIProps) -> Element {
         let ptr = props.ptr;
         let nesting_level = props.nesting_level;
-        let ast = use_context::<Signal<SyntaxNode>>();
+        let ast = ast_hooks::use_syntax_node();
         let mut menu_open = use_signal(|| false);
         let node = ptr.read().to_node(&ast.read());
         let mut fallback_ui = use_signal(|| {
@@ -90,7 +95,7 @@ pub mod components {
                     link_or_element(&node, nesting_level, rsx! { LambdaUI { ptr:ptr, nesting_level: next_level }  })
                 },
                 syntax::ast::String(_) => rsx! { StringInput { ptr:ptr } },
-                syntax::ast::Ref(_) => rsx! { RefInput { ptr:ptr } },
+                syntax::ast::Ref(_) => rsx! { ref_input_components::RefInput { ptr:ptr } },
                 _ => rsx! { FallbackExpressionUI { ..props }  },
             }
         }};
@@ -187,7 +192,7 @@ pub mod components {
 
     pub fn FallbackExpressionUI(props: ExpressionUIProps) -> Element {
         let ptr = props.ptr;
-        let node = use_ast_node::<syntax::ast::Expr>(ptr);
+        let node = ast_hooks::use_ast_node::<syntax::ast::Expr>(ptr);
         let value = node.read().syntax().text().to_string();
         rsx! {
             textarea {
@@ -209,4 +214,98 @@ pub mod components {
         }
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use insta::assert_snapshot;
+    use super::*;
+    use crate::ast::mock_hooks::{use_ast_node_context, use_syntax_node_context};
+    use serial_test::serial;
+
+    macro_rules! expression_ui_tests {
+        ($(($name:ident, $source:expr, $ty:ty)),* $(,)?) => {
+            $(
+                #[test]
+                #[serial]
+                fn $name() {
+                    let use_syntax_node_ctx = use_syntax_node_context();
+                    use_syntax_node_ctx.expect()
+                        .returning(|| {
+                            Signal::new(syntax::parse_file($source).syntax_node())
+                        });
+                    let use_ast_node_ctx = use_ast_node_context();
+                    use_ast_node_ctx.expect::<$ty>()
+                        .returning(|_| {
+                            Memo::new(|| {
+                                let syntax_node = syntax::parse_file($source).syntax_node();
+                                let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
+                                <$ty>::cast(expr.syntax().clone()).unwrap()
+                            })
+                        });
+                    let expression_ui_ctx = super::mock_components::ExpressionUI_context();
+                    expression_ui_ctx.expect()
+                        .returning(|props| {
+                        rsx! { div { "ExpressionUI for props: {props:?}" } }
+                        });
+
+                    /* I'm mocking RefInput, because otherwise, I would need to mock all it's
+                     * dependencies, as mockall doesn't fall back to the real implementation.
+                     * In the future, I might want to mock all inputs here for consistency and
+                     * because it might be needed if the components have more dependencies, however
+                     * this would require implementing a property struct for all of them, which at
+                     * the moment adds more noise than needed. */
+                    let ref_input_ctx = crate::components::ref_input::mock_components::RefInput_context();
+                    ref_input_ctx.expect()
+                        .returning(|_| {
+                        rsx! { div { "RefInput" } }
+                        });
+
+                    let mut vdom = VirtualDom::new(|| {
+                        let syntax_node = syntax::parse_file($source).syntax_node();
+                        let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
+                        let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(expr.syntax()));
+                        rsx! { components::ExpressionUI { ptr: ptr_signal, nesting_level: 1 } }
+                    });
+                    vdom.rebuild_in_place();
+                    let html = dioxus_ssr::render(&vdom);
+                    insta::assert_snapshot!(stringify!($name), html);
+                    use_ast_node_ctx.checkpoint();
+                    use_syntax_node_ctx.checkpoint();
+                }
+            )*
+        }
+    }
+
+    expression_ui_tests! {
+        (test_expression_ui_attrset, "{ a = 1; b = 2; }", syntax::ast::AttrSet),
+        (test_expression_ui_lambda, "{ var1, var2 ? \"default\" } : {}", syntax::ast::Lambda),
+        (test_expression_ui_reference, "foo", syntax::ast::Ref),
+        (test_expression_ui_string, "\"a string\"", syntax::ast::String),
+    }
+
+    #[test]
+    #[serial]
+    fn test_fallback_expression_ui() {
+        let use_ast_node_ctx = use_ast_node_context();
+        const SOURCE: &str = r#"
+        { var1, var2 ? "default" } : {}
+        "#;
+        use_ast_node_ctx.expect()
+            .returning(|_| {
+                Memo::new(|| {
+                    let syntax_node = syntax::parse_file(SOURCE).syntax_node();
+                    let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
+                    syntax::ast::Expr::cast(expr.syntax().clone()).unwrap()
+                })
+            });
+        let mut vdom = VirtualDom::new(|| {
+            let syntax_node = syntax::parse_file(SOURCE).syntax_node();
+            let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(&syntax_node));
+             rsx! { components::FallbackExpressionUI { ptr: ptr_signal, nesting_level: 1 } }
+        });
+        vdom.rebuild_in_place();
+        let html = dioxus_ssr::render(&vdom);
+        assert_snapshot!(html);
+    }
 }

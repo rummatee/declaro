@@ -1,0 +1,6 @@
+---
+source: src/components/expression.rs
+expression: html
+---
+<textarea class="fallback-expression-input simple-input" value="{ var1, var2 ? &#34;default&#34; } : {}
+        "></textarea>

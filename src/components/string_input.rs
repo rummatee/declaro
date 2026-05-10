@@ -2,13 +2,16 @@ use syntax::ast::{HasStringParts};
 use syntax::{SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
+use mockall_double::double;
 
 use crate::ast::functions::update_node_value;
-use crate::ast::hooks::use_ast_node;
+
+#[double]
+use crate::ast::hooks as ast_hooks;
 
 #[component]
 pub fn StringInput(ptr: ReadSignal<SyntaxNodePtr>) -> Element {
-    let node = use_ast_node::<syntax::ast::String>(ptr);
+    let node = ast_hooks::use_ast_node::<syntax::ast::String>(ptr);
     let value = node.read().string_parts().filter_map(|part| {
         match part {
         syntax::ast::StringPart::Fragment(text) => Some(text.text().to_string()),

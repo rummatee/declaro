@@ -50,8 +50,10 @@ mod tests {
     use super::*;
     use crate::ast::mock_hooks::use_ast_node_context;
     use crate::components::expression::mock_components::ExpressionUI_context;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_attribute_set_ui() {
         let use_ast_node_ctx = use_ast_node_context();
         let expression_ui_ctx = ExpressionUI_context();
