@@ -1,0 +1,5 @@
+---
+source: src/components/string_input.rs
+expression: html
+---
+<input class="string-input simple-input" value="foo"/>

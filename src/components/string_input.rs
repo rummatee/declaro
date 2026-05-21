@@ -37,3 +37,33 @@ pub fn StringInput(ptr: ReadSignal<SyntaxNodePtr>) -> Element {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ast::mock_hooks::use_ast_node_context;
+    use insta::assert_snapshot;
+    use super::*;
+
+    #[test]
+    fn test_string_input() {
+        let use_ast_node_ctx = use_ast_node_context();
+        use_ast_node_ctx.expect()
+            .returning(|_| {
+                Memo::new(|| {
+                    let syntax_node = syntax::parse_file("\"foo\"").syntax_node();
+                    let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
+                    syntax::ast::String::cast(expr.syntax().clone()).unwrap()
+                })
+            });
+        let mut vdom = VirtualDom::new(|| {
+            let syntax_node = syntax::parse_file("foo").syntax_node();
+            let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(&syntax_node));
+
+             rsx! { StringInput { ptr: ptr_signal } }
+        });
+        vdom.rebuild_in_place();
+        let html = dioxus_ssr::render(&vdom);
+        assert_snapshot!(html);
+    }
+}
+
