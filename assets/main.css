@@ -98,6 +98,18 @@ nav a:after {
   font-size: 1em;
 }
 
+.string-input input {
+  border: none;
+  outline: 0;
+  font-size: 1em;
+}
+
+.string-input .dynamic-fragment {
+  border: 1px solid #aaa;
+  background-color: #e0e0e0;
+  cursor: pointer;
+}
+
 .lambda-parameters {
   list-style-type: none;
   margin-top: 0.5em;

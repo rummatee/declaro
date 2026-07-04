@@ -1,6 +1,8 @@
+use ide::{AnalysisHost, FileId};
 use syntax::{SyntaxNode, SyntaxNodePtr, NixLanguage, ast::AstNode};
 use dioxus::prelude::*;
 use mockall_double::double;
+use thiserror::Error;
 
 #[cfg(test)]
 use mockall::automock;
@@ -168,6 +170,32 @@ pub mod functions {
 
         parent.replace_with(new_parent)
     }
+
+    pub fn get_bindings_in_scope(node: &SyntaxNode, analysis: &(AnalysisHost, FileId)) -> Result<Vec<String>, BindingsRetrievalError> {
+        let snapshot = analysis.0.snapshot();
+        let scopes = snapshot.scopes(analysis.1)?;
+        let expr_id = snapshot
+            .source_map(analysis.1).unwrap()
+            .expr_for_node(SyntaxNodePtr::new(node)).ok_or(BindingsRetrievalError::GetExprIdError)?;
+        let scope_id = scopes.scope_for_expr(expr_id).ok_or(BindingsRetrievalError::GetScopeForExprError)?;
+        Ok(scopes
+            .ancestors(scope_id)
+            .filter_map(|scope| scope.as_definitions())
+            .flatten()
+            .map(|(name, _def)| name.to_string())
+            .collect::<Vec<String>>())
+    }
+}
+
+
+#[derive(Error, Debug)]
+pub enum BindingsRetrievalError {
+    #[error("Failed getting scopes")]
+    GetScopesError(#[from] ide::Cancelled),
+    #[error("Failed getting expression id")]
+    GetExprIdError,
+    #[error("Failed getting scope for expression")]
+    GetScopeForExprError,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -189,8 +217,10 @@ mod tests {
     use super::*;
     use insta::assert_snapshot;
     use std::str::FromStr;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_ast_path_roundtrip() {
         let code = r#"
             let x = 1;
@@ -211,12 +241,14 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_empty_ast_path() {
         let path = AstPath::from_str("").expect("Failed to parse empty AstPath");
         assert_eq!(path.indices.len(), 0);
     }
 
     #[test]
+    #[serial]
     fn test_invalid_ast_path() {
         let result = AstPath::from_str("0.a.1");
         assert!(result.is_err());
@@ -224,6 +256,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_update_node_value() {
         // drop into dioxus environment to allow SIgnal creation
         let mut vdom = VirtualDom::new(|| {
@@ -252,5 +285,17 @@ mod tests {
         });
         vdom.rebuild_in_place();
         assert!(dioxus_ssr::render(&vdom).contains("success"));
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_bindings_in_scope() {
+        let analysis_host = AnalysisHost::new_single_file("let foo = 1; in let bar = 2; in foo + bar").0;
+        let syntax_node = syntax::parse_file("let foo = 1; in let bar = 2; in foo + bar").syntax_node();
+        let path = crate::ast::AstPath{indices: vec![0, 1, 1, 0]}; // Path to the 'foo' reference in 'foo + bar'
+        let expr = crate::ast::functions::resolve_path(&syntax_node, &path).unwrap();
+        let ref_node = syntax::ast::Ref::cast(expr.clone()).unwrap();
+        let bindings = functions::get_bindings_in_scope(ref_node.syntax(), &(analysis_host, FileId(0))).unwrap();
+        assert_eq!(bindings, vec!["bar".to_string(), "foo".to_string()]);
     }
 }

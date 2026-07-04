@@ -4,7 +4,7 @@
   moreVariables,
   ...
 }: {
-  someAttribute = "This is an example attribute";
+  someAttribute = "This is an example attribute ${variable1}";
   nested = {
     attribute = "value";
   };
