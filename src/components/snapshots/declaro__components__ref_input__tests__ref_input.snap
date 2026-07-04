@@ -2,4 +2,4 @@
 source: src/components/ref_input.rs
 expression: html
 ---
-<select class="ref-input simple-inout"><option selected=true>foo</option><option>bar</option></select>
+<select class="ref-input simple-input"><option selected=true>foo</option><option>bar</option></select>

@@ -43,7 +43,7 @@ pub mod components {
 
         rsx! {
             select { 
-                class: "ref-input simple-inout",
+                class: "ref-input simple-input",
                 onchange: move |e| {
 
                     ast_functions::update_node_value(
@@ -132,6 +132,6 @@ mod tests {
         });
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);
-        assert_eq!(html, "");
+        assert_snapshot!(html);
     }
 }

@@ -14,11 +14,13 @@ use crate::ast::hooks as ast_hooks;
 use crate::ast::functions::{update_node_value, path_from_root};
 
 use crate::components::attribute_set::AttributeSetUI;
-use crate::components::string_input::StringInput;
 use crate::components::lambda::LambdaUI;
 
 #[double]
 use crate::components::ref_input::components as ref_input_components;
+
+#[double]
+use crate::components::string_input::components as string_input_components;
 
 #[cfg(test)]
 use mockall::automock;
@@ -94,7 +96,7 @@ pub mod components {
                 syntax::ast::Lambda(_) => {
                     link_or_element(&node, nesting_level, rsx! { LambdaUI { ptr:ptr, nesting_level: next_level }  })
                 },
-                syntax::ast::String(_) => rsx! { StringInput { ptr:ptr } },
+                syntax::ast::String(_) => rsx! { string_input_components::StringInput { ptr:ptr } },
                 syntax::ast::Ref(_) => rsx! { ref_input_components::RefInput { ptr:ptr } },
                 _ => rsx! { FallbackExpressionUI { ..props }  },
             }
@@ -249,7 +251,7 @@ mod tests {
                         rsx! { div { "ExpressionUI for props: {props:?}" } }
                         });
 
-                    /* I'm mocking RefInput, because otherwise, I would need to mock all it's
+                    /* I'm mocking RefInput and StringInput, because otherwise, I would need to mock all it's
                      * dependencies, as mockall doesn't fall back to the real implementation.
                      * In the future, I might want to mock all inputs here for consistency and
                      * because it might be needed if the components have more dependencies, however
@@ -259,6 +261,12 @@ mod tests {
                     ref_input_ctx.expect()
                         .returning(|_| {
                         rsx! { div { "RefInput" } }
+                        });
+
+                    let string_input_ctx = crate::components::string_input::mock_components::StringInput_context();
+                    string_input_ctx.expect()
+                        .returning(|_| {
+                        rsx! { div { "StringInput" } }
                         });
 
                     let mut vdom = VirtualDom::new(|| {
