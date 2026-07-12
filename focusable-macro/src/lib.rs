@@ -1,17 +1,102 @@
-use proc_macro::TokenStream;
-use quote::quote;
+use proc_macro2::TokenStream;
 use syn::{
-    braced, parse::{Parse, ParseStream}, parse_macro_input, Block, Expr, Ident, Pat, Token, Type
+    braced, bracketed,
+    parse::{Parse, ParseStream},
+    Expr, Ident, Pat, Token, Type,
 };
+use quote::quote;
+
+// Parses a sequence of `name = value` pairs where value is either
+// a raw token tree in braces, or a regular parsed type.
+struct RawField {
+    name: Ident,
+    value: TokenStream,
+}
+
+impl Parse for RawField {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let name: Ident = input.parse()?;
+        input.parse::<Token![=]>()?;
+
+        let value = if input.peek(syn::token::Brace) {
+            let content;
+            braced!(content in input);
+            let inner = content.parse::<TokenStream>()?;
+            quote! { {#inner} }
+        } else if input.peek(syn::token::Bracket) {
+            // preserve the brackets so ArmsArray can consume them
+            let content;
+            bracketed!(content in input);
+            let inner: TokenStream = content.parse()?;
+            quote! { [#inner] }
+        } else {
+            // Consume raw tokens until the next `,` or `}` at this nesting level
+            let mut tokens = vec![];
+            while !input.is_empty()
+                && !input.peek(Token![,])
+                && !input.peek(syn::token::Brace)
+            {
+                let tt: proc_macro2::TokenTree = input.parse()?;
+                tokens.push(tt);
+            }
+            tokens.into_iter().collect()
+        };
+
+        Ok(RawField { name, value })
+    }
+}
+
+// Parses a `{ name = value, name = value, ... }` block
+// and lets you extract fields by name
+struct NamedFields(Vec<RawField>);
+
+impl Parse for NamedFields {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let content;
+        braced!(content in input);
+        let mut fields = vec![];
+        while !content.is_empty() {
+            fields.push(content.parse::<RawField>()?);
+            if content.peek(Token![,]) {
+                content.parse::<Token![,]>()?;
+            }
+        }
+        Ok(NamedFields(fields))
+    }
+}
+
+impl NamedFields {
+    fn get(&self, name: &str) -> Option<&TokenStream> {
+        self.0.iter().find(|f| f.name == name).map(|f| &f.value)
+    }
+
+    fn require(&self, name: &str, span: proc_macro2::Span) -> syn::Result<&TokenStream> {
+        self.get(name).ok_or_else(|| syn::Error::new(span, format!("missing field `{name}`")))
+    }
+}
+
+struct Braced(TokenStream);
+
+impl Parse for Braced {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let content;
+        braced!(content in input);
+        Ok(Braced(content.parse()?))
+    }
+}
+
+struct ElementConfig {
+    element_type: Type,
+    preparation: Option<TokenStream>,
+    content: Option<TokenStream>,
+}
+
 
 struct FocusableArm {
-    matcher: Pat,
-    focused_type: Type,
-    focused_preparation: Option<proc_macro2::TokenStream>,
-    focused_content: Option<proc_macro2::TokenStream>,
-    blurred_type: Type,
-    blurred_preparation: Option<proc_macro2::TokenStream>,
-    blurred_content: Option<proc_macro2::TokenStream>,
+    matcher: TokenStream,
+    focused: ElementConfig,
+    blurred: ElementConfig,
+    onfocus: Option<TokenStream>,
 }
 
 struct FocusableInput {
@@ -20,118 +105,92 @@ struct FocusableInput {
     arms: Vec<FocusableArm>,
 }
 
+impl Parse for ElementConfig {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let fields = NamedFields::parse(input)?;
+        let element_type = syn::parse2(fields.require("element_type", input.span())?.clone())?;
+        let preparation = fields.get("preparation").
+            map(|ts| syn::parse2::<Braced>(ts.clone()).map(|b| b.0))
+            .transpose()?;
+        let content = fields.get("content")
+            .map(|ts| syn::parse2::<Braced>(ts.clone()).map(|b| b.0))
+            .transpose()?;
+
+        Ok(ElementConfig {
+            element_type,
+            preparation,
+            content,
+        })
+    }
+}
+
+impl Parse for FocusableArm {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let fields = NamedFields::parse(input)?;
+        let matcher = fields.require("matcher", input.span())?.clone();
+        let focused = syn::parse2(fields.require("focused", input.span())?.clone())?;
+        let blurred = syn::parse2(fields.require("blurred", input.span())?.clone())?;
+        let onfocus = fields.get("onfocus")
+            .map(|ts| syn::parse2::<Braced>(ts.clone()).map(|b| b.0))
+            .transpose()?;
+        Ok(FocusableArm {
+            matcher,
+            focused,
+            blurred,
+            onfocus,
+        })
+    }
+}
+
 impl Parse for FocusableInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let iterator: Expr = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let focus: Expr = input.parse()?;
+        let span = input.span();
+        let fields = NamedFields::parse(input)?;
+        let iterator = syn::parse2(fields.require("iterator", input.span())?.clone())?;
+        let focus = syn::parse2(fields.require("focus", input.span())?.clone())?;
+        let arms_ts = fields.require("arms", span)?.clone();
+        let arms = syn::parse2::<ArmsArray>(arms_ts)?.0;
+        Ok(FocusableInput {
+            iterator,
+            focus,
+            arms,
+        })
+    }
+}
 
+struct ArmsArray(Vec<FocusableArm>);
+
+impl Parse for ArmsArray {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let content;
+        bracketed!(content in input);
         let mut arms = vec![];
-        let mut focused_span = None;
-        let mut blurred_span = None;
-        while !input.is_empty() {
-            input.parse::<Token![,]>()?;
-            let matcher: Pat = Pat::parse_multi(input)?;
-            input.parse::<Token![,]>()?;
-            let mut focused_preparation = None;
-            let mut focused_content = None;
-            let mut blurred_preparation = None;
-            let mut blurred_content = None;
-            let mut focused_type = None;
-            let mut blurred_type = None;
-            let ident: Ident = input.parse()?;
-            if ident != "focused" {
-                return Err(syn::Error::new(ident.span(), "Expected 'focused'"));
+        while !content.is_empty() {
+            arms.push(content.parse::<FocusableArm>()?);
+            if content.peek(Token![,]) {
+                content.parse::<Token![,]>()?;
             }
-            input.parse::<Token![:]>()?;
-            let focused;
-            braced!(focused in input);
-            focused_span = Some(focused.span());
-            while !focused.is_empty() {
-                let ident: Ident = focused.parse()?;
-                match ident.to_string().as_str() {
-                    "t" => {
-                        focused.parse::<Token![:]>()?;
-                        let t: Type = focused.parse()?;
-                        focused_type = Some(t);
-                    }
-                    "preparation" => {
-                        focused.parse::<Token![:]>()?;
-                        let preparation_block;
-                        braced!(preparation_block in focused);
-                        focused_preparation = Some(preparation_block.parse()?);
-                    }
-                    "content" => {
-                        focused.parse::<Token![:]>()?;
-                        let content_block;
-                        braced!(content_block in focused);
-                        focused_content = Some(content_block.parse()?);
-                    }
-                    _ => return Err(syn::Error::new(ident.span(), "Expected 't', 'preparation', or 'content'")),
-                }
-                if !focused.is_empty() {
-                    focused.parse::<Token![,]>()?;
-                }
-
-            }
-            input.parse::<Token![,]>()?;
-            let ident: Ident = input.parse()?;
-            if ident != "blurred" {
-                return Err(syn::Error::new(ident.span(), "Expected 'blurred'"));
-            }
-            input.parse::<Token![:]>()?;
-            let blurred;
-            braced!(blurred in input);
-            blurred_span = Some(blurred.span());
-            while !blurred.is_empty() {
-                let ident: Ident = blurred.parse()?;
-                match ident.to_string().as_str() {
-                    "t" => {
-                        blurred.parse::<Token![:]>()?;
-                        let t: Type = blurred.parse()?;
-                        blurred_type = Some(t);
-                    }
-                    "preparation" => {
-                        blurred.parse::<Token![:]>()?;
-                        let preparation_block;
-                        braced!(preparation_block in blurred);
-                        blurred_preparation = Some(preparation_block.parse()?);
-                    }
-                    "content" => {
-                        blurred.parse::<Token![:]>()?;
-                        let content_block;
-                        braced!(content_block in blurred);
-                        blurred_content = Some(content_block.parse()?);
-                    }
-                    _ => return Err(syn::Error::new(ident.span(), "Expected 't', 'preparation', or 'content'")),
-                }
-                if !blurred.is_empty() {
-                    blurred.parse::<Token![,]>()?;
-                }
-            }
-
-            let focused_span = focused_span.ok_or(syn::Error::new(input.span(), "Missing 'focused' block"))?;
-            let blurred_span = blurred_span.ok_or(syn::Error::new(input.span(), "Missing 'blurred' block"))?;
-
-            let focused_type = focused_type.ok_or(syn::Error::new(focused_span, "Missing 'focused' type"))?;
-            let blurred_type = blurred_type.ok_or(syn::Error::new(blurred_span, "Missing 'blurred' type"))?;
-            arms.push(FocusableArm { matcher, focused_type, focused_preparation, focused_content, blurred_type, blurred_preparation, blurred_content });
         }
-
-        if input.peek(Token![,]) {
-            input.parse::<Token![,]>()?;
-        }
-
-        Ok(FocusableInput { iterator, focus, arms })
+        Ok(ArmsArray(arms))
     }
 }
 
 #[proc_macro]
-pub fn focusable(input: TokenStream) -> TokenStream {
-    let FocusableInput { iterator, focus, arms } = parse_macro_input!(input as FocusableInput);
+pub fn focusable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let FocusableInput {
+        iterator,
+        focus,
+        arms,
+    } = syn::parse_macro_input!(input as FocusableInput);
 
     let match_arms = arms.iter().map(|arm| {
-        let FocusableArm { matcher, focused_type, focused_preparation, focused_content, blurred_type, blurred_preparation, blurred_content } = arm;
+        let FocusableArm { matcher, focused, blurred , onfocus} = arm;
+        let focused_type = &focused.element_type;
+        let focused_preparation = &focused.preparation;
+        let focused_content = &focused.content;
+        let blurred_type = &blurred.element_type;
+        let blurred_preparation = &blurred.preparation;
+        let blurred_content = &blurred.content;
         quote! {
             #matcher => {
                 if focused {
@@ -141,7 +200,6 @@ pub fn focusable(input: TokenStream) -> TokenStream {
                             onmounted: move |input| async move {
                                 let _ = input.data().set_focus(true).await;
                             },
-                            onblur: move |_| { #focus.set(None); },
                             #focused_content
                         }
                     })
@@ -149,7 +207,10 @@ pub fn focusable(input: TokenStream) -> TokenStream {
                     #blurred_preparation
                     Some(rsx! {
                         #blurred_type {
-                            onclick: move |_| { #focus.set(Some(index)); },
+                            onclick: move |_| { 
+                                #focus.set(Some(index));
+                                #onfocus
+                            },
                             #blurred_content
                         }
                     })
