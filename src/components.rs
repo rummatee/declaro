@@ -10,7 +10,7 @@ use crate::router::Route;
 
 use expression::components::ExpressionUI;
 
-use crate::ast::functions::{collect_path, resolve_path, update_node_value, path_from_root};
+use crate::ast::functions::{collect_path, resolve_path};
 use crate::ast::AstPath;
 
 #[component]
@@ -18,7 +18,7 @@ pub fn NodeUI(path: ReadSignal<AstPath>) -> Element {
     let ast = use_context::<Signal<SyntaxNode>>();
     let ptr = use_memo(move || {
         let node = resolve_path(&ast.read(), &path.read()).unwrap();
-        println!("NodeUI rendering node: {}", node.to_string());
+        println!("NodeUI rendering node: {}", node);
         SyntaxNodePtr::new(&node)
     });
     let level: u16 = 0;

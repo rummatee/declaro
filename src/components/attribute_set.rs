@@ -1,5 +1,5 @@
 use syntax::ast::{HasBindings};
-use syntax::{SyntaxNode, SyntaxNodePtr};
+use syntax::SyntaxNodePtr;
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;

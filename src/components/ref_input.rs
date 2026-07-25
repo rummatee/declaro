@@ -1,4 +1,4 @@
-use syntax::{SyntaxNode, SyntaxNodePtr};
+use syntax::SyntaxNodePtr;
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;
@@ -23,6 +23,7 @@ pub mod components {
 
     use super::*;
 
+    #[allow(non_snake_case)]
     pub fn RefInput(props: RefInputProps) -> Element {
         let ptr = props.ptr;
         let analysis = hooks::use_analysis_host();
@@ -68,7 +69,7 @@ mod tests {
     use serial_test::serial;
     use super::*;
     use crate::ast::mock_hooks::use_ast_node_context;
-    use ide::{AnalysisHost, FileId};
+    use ide::{AnalysisHost};
 
     #[test]
     #[serial]

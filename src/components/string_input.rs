@@ -1,9 +1,8 @@
 use syntax::ast::{HasStringParts};
-use syntax::{SyntaxNode, SyntaxNodePtr};
+use syntax::SyntaxNodePtr;
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;
-use thiserror::Error;
 use focusable_macro::focusable;
 
 use crate::ast::functions::update_node_value;
@@ -26,6 +25,7 @@ pub mod components {
 
     use super::*;
 
+    #[allow(non_snake_case)]
     pub fn StringInput(props: StringInputProps) -> Element {
         let ptr = props.ptr;
         let node = ast_hooks::use_ast_node::<syntax::ast::String>(ptr);

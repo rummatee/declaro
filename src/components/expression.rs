@@ -1,5 +1,4 @@
 use std::iter::once;
-use syntax::ast::{HasStringParts};
 use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
@@ -75,6 +74,7 @@ pub mod components {
 
     use super::*;
 
+    #[allow(non_snake_case)]
     pub fn ExpressionUI(props: ExpressionUIProps) -> Element {
         let ptr = props.ptr;
         let nesting_level = props.nesting_level;
@@ -192,6 +192,7 @@ pub mod components {
         }
     }
 
+    #[allow(non_snake_case)]
     pub fn FallbackExpressionUI(props: ExpressionUIProps) -> Element {
         let ptr = props.ptr;
         let node = ast_hooks::use_ast_node::<syntax::ast::Expr>(ptr);

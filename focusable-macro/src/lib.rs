@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use syn::{
     braced, bracketed,
     parse::{Parse, ParseStream},
-    Expr, Ident, Pat, Token, Type,
+    Expr, Ident, Token, Type,
 };
 use quote::quote;
 

@@ -1,9 +1,7 @@
-use syntax::{SyntaxNode, SyntaxNodePtr};
+use syntax::SyntaxNodePtr;
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;
-
-use crate::components::expression::components::ExpressionUI;
 
 #[double]
 use crate::components::expression::components as expression_components;
