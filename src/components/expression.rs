@@ -277,9 +277,12 @@ mod tests {
                     });
                     vdom.rebuild_in_place();
                     let html = dioxus_ssr::render(&vdom);
-                    insta::assert_snapshot!(stringify!($name), html);
                     use_ast_node_ctx.checkpoint();
                     use_syntax_node_ctx.checkpoint();
+                    expression_ui_ctx.checkpoint();
+                    ref_input_ctx.checkpoint();
+                    string_input_ctx.checkpoint();
+                    insta::assert_snapshot!(stringify!($name), html);
                 }
             )*
         }

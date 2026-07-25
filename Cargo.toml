@@ -35,8 +35,6 @@ desktop = [
 ]
 mobile = ["dioxus/mobile", "dioxus-motion/desktop", "dioxus-motion/transitions"]
 
-[profile]
-
 [profile.wasm-dev]
 inherits = "dev"
 opt-level = 1

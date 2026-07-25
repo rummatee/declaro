@@ -82,10 +82,23 @@ nav a:after {
 }
 
 .attribute-label {
-  font-weight: bold;
+  font-weight: bold !important;
   margin-right: 10px;
   align-self: center;
   flex: 1;
+  background-color: transparent;
+  border: none;
+  outline: none;
+}
+
+.attribute-set-add {
+  border: 1px solid #aaa;
+  border-radius: 100%;
+  width: 2em;
+  height: 2em;
+  cursor: pointer;
+  text-align: center;
+  line-height: 2em;
 }
 
 .string-input {
