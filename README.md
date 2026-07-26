@@ -47,7 +47,7 @@ dx run
 
 
 ## Roadmap
-- Edit lambda parameters, edit, add and remove attribute-set paths, string interpolation
+- Edit lambda parameters
 - Support lists, with- and let-expressions, assertions, inherit, imports, numbers, booleans and paths
 - Show available attributes, defaults and help for NixOS modules and flakes
 - Visualize diffs between two Nix configurations

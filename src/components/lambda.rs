@@ -1,6 +1,8 @@
 use syntax::SyntaxNodePtr;
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
+use focusable_macro::focusable;
+use crate::ast::functions::update_node_value;
 use mockall_double::double;
 
 #[double]
@@ -14,11 +16,59 @@ pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let lambda = ast_hooks::use_ast_node::<syntax::ast::Lambda>(ptr);
     let params = lambda.read().param().unwrap().pat().unwrap().fields();
 
-    let param_elements = params.map(|param| {
-        let label = param.syntax().text().to_string();
-        rsx! {
-            li { "{label}" }
-        }
+    let focus = use_signal::<Option<i8>>(|| None);
+    let enumerated_params = params.clone().enumerate();
+    let param_elements = focusable!({
+        iterator = enumerated_params,
+        focus = focus,
+        arms = [
+            {
+                matcher = _,
+                focused = {
+                    element_type = input,
+                    preparation = {
+                        let param_name = indexed_part.1.syntax().text().to_string();
+                    },
+                    content = {
+                        class: "lambda-parameter",
+                        value: "{param_name.trim()}",
+                        oninput: move |evt| {
+                            let new_param_name = evt.value().clone();
+                            let new_params = enumerated_params.clone().map(|(i, param)| {
+                                if i == indexed_part.0 {
+                                    new_param_name.clone()
+                                } else {
+                                    param.syntax().text().to_string()
+                                }
+                            }).collect::<Vec<_>>().join(", ");
+                            let new_lambda_text = format!("{{{}}} : {}", new_params, lambda.read().body().unwrap().syntax().text());
+                            update_node_value(
+                                lambda.read().syntax().clone(),
+                                &new_lambda_text,
+                                |syntax| {
+                                    <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
+                                        .and_then(|sf| sf.expr())
+                                        .map(|expr| expr.syntax().clone())
+                                }
+                            );
+                        },
+                        onfocusout: move |_| {
+                            focus.set(None);
+                        }
+                    }
+                },
+                blurred = {
+                    element_type = div,
+                    preparation = {
+                        let param_name = indexed_part.1.syntax().text().to_string();
+                    },
+                    content = {
+                        class: "lambda-parameter",
+                        "{param_name.trim()}"
+                    }
+                }
+            }
+        ]
     });
 
     let body_ptr = use_memo(move || SyntaxNodePtr::new(lambda.read().body().unwrap().syntax()));
@@ -26,10 +76,12 @@ pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     rsx! {
         div {
             class: "lambda-node",
-            h3 { "Lambda Function" }
+            div {
+                class: "lambda-symbol",
+                "λ"
+            }
             div {
                 class: "lambda-parameters",
-                h4 { "Parameters:" }
                 ul {
                     { param_elements }
                 }

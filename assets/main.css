@@ -123,7 +123,16 @@ nav a:after {
   cursor: pointer;
 }
 
+.lambda-symbol {
+  font-weight: bold;
+  margin-right: 0em;
+  margin-left: 1em;
+  display: inline-block;
+  font-size: 1.3em;
+}
+
 .lambda-parameters {
+  display: inline-block;
   list-style-type: none;
   margin-top: 0.5em;
 }
