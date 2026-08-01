@@ -11,6 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.rust.outputs.rust_stable }}
+          components: rustfmt, clippy
+      - uses: cargo-bins/cargo-binstall@main
       - name: Build
         run: cargo build
       - name: Run tests
