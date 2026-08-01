@@ -197,8 +197,8 @@ pub fn focusable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #focused_preparation
                     Some(rsx! {
                         #focused_type {
-                            onmounted: move |input| async move {
-                                let _ = input.data().set_focus(true).await;
+                            onmounted: move |input: Event<MountedData>| async move {
+                                let _ = input.set_focus(true).await;
                             },
                             #focused_content
                         }
@@ -208,7 +208,8 @@ pub fn focusable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     Some(rsx! {
                         #blurred_type {
                             onclick: move |_| { 
-                                #focus.set(Some(index));
+                                let mut __focus = #focus;
+                                __focus.set(Some(index));
                                 #onfocus
                             },
                             #blurred_content

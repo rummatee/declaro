@@ -1,9 +1,10 @@
-use syntax::SyntaxNodePtr;
+use syntax::{SyntaxNode, SyntaxNodePtr};
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 use focusable_macro::focusable;
-use crate::ast::functions::update_node_value;
 use mockall_double::double;
+use crate::ast::functions::update_node_value;
+use dioxus_primitives::collapsible;
 
 #[double]
 use crate::components::expression::components as expression_components;
@@ -17,7 +18,8 @@ pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let params = lambda.read().param().unwrap().pat().unwrap().fields();
 
     let focus = use_signal::<Option<i8>>(|| None);
-    let enumerated_params = params.clone().enumerate();
+    let params_copy = params.clone();
+    let enumerated_params = params_copy.enumerate();
     let param_elements = focusable!({
         iterator = enumerated_params,
         focus = focus,
@@ -25,26 +27,30 @@ pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
             {
                 matcher = _,
                 focused = {
-                    element_type = input,
+                    element_type = LambdaParameter,
                     preparation = {
-                        let param_name = indexed_part.1.syntax().text().to_string();
+                        let param_name = indexed_part.1.name().map(|name| name.syntax().text().to_string()).unwrap_or_default();
+                        let default_expr = indexed_part.1.default_expr().map(|expr| expr.syntax().clone());
+                        let default_expr_text = default_expr.clone().map(|expr| expr.text().to_string());
+                        let body = lambda.read().body().unwrap();
                     },
                     content = {
-                        class: "lambda-parameter",
-                        value: "{param_name.trim()}",
-                        oninput: move |evt| {
-                            let new_param_name = evt.value().clone();
-                            let new_params = enumerated_params.clone().map(|(i, param)| {
+                        oninput: move |evt: Event<FormData>| {
+                            let new_name = evt.value().clone();
+                            let new_lambda = format!("{{{}}}: {}",enumerated_params.clone().map(|(i, param)| {
                                 if i == indexed_part.0 {
-                                    new_param_name.clone()
+                                    match default_expr_text.clone() {
+                                        Some(default) => format!("{} ? {}", new_name, default),
+                                        None => new_name.clone(),
+                                    }
                                 } else {
                                     param.syntax().text().to_string()
                                 }
-                            }).collect::<Vec<_>>().join(", ");
-                            let new_lambda_text = format!("{{{}}} : {}", new_params, lambda.read().body().unwrap().syntax().text());
+
+                            }).collect::<Vec<_>>().join(", "), body.clone().syntax().text());
                             update_node_value(
                                 lambda.read().syntax().clone(),
-                                &new_lambda_text,
+                                &new_lambda,
                                 |syntax| {
                                     <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
                                         .and_then(|sf| sf.expr())
@@ -54,16 +60,20 @@ pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
                         },
                         onfocusout: move |_| {
                             focus.set(None);
-                        }
+                        },
+                        name: param_name,
+                        default: default_expr
                     }
                 },
                 blurred = {
                     element_type = div,
                     preparation = {
-                        let param_name = indexed_part.1.syntax().text().to_string();
+                        let param_name = indexed_part.1.name().map(|name| name.syntax().text().to_string()).unwrap_or_default();
+                        let default_expr = indexed_part.1.default_expr().map(|expr| expr.syntax().text().to_string());
                     },
                     content = {
                         class: "lambda-parameter",
+                        title: {default_expr},
                         "{param_name.trim()}"
                     }
                 }
@@ -91,6 +101,86 @@ pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     }
 }
 
+#[component]
+pub fn LambdaParameter(
+    onmounted: Option<EventHandler<Event<MountedData>>>,
+    onblur: Option<EventHandler<Event<FocusData>>>,
+    oninput: Option<EventHandler<Event<FormData>>>,
+    onfocusout: Option<EventHandler<Event<FocusData>>>,
+    name: String,
+    default: Option<SyntaxNode>,
+) -> Element {
+    if let Some(default_expr) = default {
+        rsx! {
+            collapsible::Collapsible {
+                collapsible::CollapsibleTrigger {
+                    class: "lambda-parameter",
+                    input {
+                        onmounted: move |evt| {
+                            if onmounted.is_some() {
+                                onmounted.unwrap().call(evt)
+                            }
+                        },
+                        onblur: move |evt| {
+                            if onblur.is_some() {
+                                onblur.unwrap().call(evt)
+                            }
+                        },
+                        oninput: move |evt| {
+                            if oninput.is_some() {
+                                oninput.unwrap().call(evt)
+                            }
+                        },
+                        onfocusout: move |evt| {
+                            if onfocusout.is_some() {
+                                onfocusout.unwrap().call(evt)
+                            }
+                        },
+                        value: "{name.trim()}",
+                    }
+                    dioxus_free_icons::Icon {
+                        icon: dioxus_free_icons::icons::fa_solid_icons::FaChevronDown,
+                        class: "lambda-parameter-default-icon"
+                    }
+                }
+                collapsible::CollapsibleContent {
+                    class: "lambda-parameter-default",
+                    expression_components::ExpressionUI { 
+                        ptr: SyntaxNodePtr::new(&default_expr), 
+                        nesting_level: 0 
+                    }
+                }
+            }
+        }
+    } else {
+        rsx! {
+            input {
+                class: "lambda-parameter",
+                    onmounted: move |evt| {
+                        if onmounted.is_some() {
+                            onmounted.unwrap().call(evt)
+                        }
+                    },
+                    onblur: move |evt| {
+                        if onblur.is_some() {
+                            onblur.unwrap().call(evt)
+                        }
+                    },
+                    oninput: move |evt| {
+                        if oninput.is_some() {
+                            oninput.unwrap().call(evt)
+                        }
+                    },
+                    onfocusout: move |evt| {
+                        if onfocusout.is_some() {
+                            onfocusout.unwrap().call(evt)
+                        }
+                    },
+                    value: "{name.trim()}"
+            }
+        }
+    }
+}
 
 
 #[cfg(test)]

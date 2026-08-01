@@ -156,6 +156,17 @@ nav a:after {
   gap: 2em;
 }
 
+.lambda-parameter {
+  background: none;
+  border: none;
+}
+
+.lambda-parameter-default-icon {
+  margin-left: 1em;
+  cursor: pointer;
+  opacity: 0.4;
+}
+
 .fallback-expression-input {
   width: 20em;
   border: 1px solid #aaa;
