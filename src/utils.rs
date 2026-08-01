@@ -10,7 +10,7 @@ pub mod hooks {
         T: 'static,
         F: FnMut() -> T + 'static,
     {
-        let mut value = use_signal(|| derive());
+        let mut value = use_signal(&mut derive);
 
         use_effect(move || {
             value.set(derive());

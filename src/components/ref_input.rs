@@ -125,7 +125,7 @@ mod tests {
             Signal::new(analysis_host)
             });
         get_bindings_in_scope_ctx.expect()
-            .returning(|_, _| Err(crate::ast::BindingsRetrievalError::GetExprIdError));
+            .returning(|_, _| Err(crate::ast::BindingsRetrievalError::ExprId));
         let mut vdom = VirtualDom::new(|| {
             let syntax_node = syntax::parse_file("foo").syntax_node();
             let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(&syntax_node));

@@ -119,18 +119,18 @@ pub fn LambdaParameter(
                     class: "lambda-parameter",
                     input {
                         onmounted: move |evt| {
-                            if onmounted.is_some() {
-                                onmounted.unwrap().call(evt)
+                            if let Some(callback) = onmounted {
+                                callback.call(evt)
                             }
                         },
                         onblur: move |evt| {
-                            if onblur.is_some() {
-                                onblur.unwrap().call(evt)
+                            if let Some(callback) = onblur {
+                                callback.call(evt)
                             }
                         },
                         oninput: move |evt| {
-                            if oninput.is_some() {
-                                oninput.unwrap().call(evt)
+                            if let Some(callback) = oninput {
+                                callback.call(evt)
                             }
                         },
                         value: "{name.trim()}",
@@ -154,23 +154,23 @@ pub fn LambdaParameter(
             input {
                 class: "lambda-parameter",
                     onmounted: move |evt| {
-                        if onmounted.is_some() {
-                            onmounted.unwrap().call(evt)
+                        if let Some(callback) = onmounted {
+                            callback.call(evt)
                         }
                     },
                     onblur: move |evt| {
-                        if onblur.is_some() {
-                            onblur.unwrap().call(evt)
+                        if let Some(callback) = onblur {
+                            callback.call(evt)
                         }
                     },
                     oninput: move |evt| {
-                        if oninput.is_some() {
-                            oninput.unwrap().call(evt)
+                        if let Some(callback) = oninput {
+                            callback.call(evt)
                         }
                     },
                     onfocusout: move |evt| {
-                        if onfocusout.is_some() {
-                            onfocusout.unwrap().call(evt)
+                        if let Some(callback) = onfocusout {
+                            callback.call(evt)
                         }
                     },
                     value: "{name.trim()}"
