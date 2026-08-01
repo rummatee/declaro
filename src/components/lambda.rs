@@ -62,6 +62,7 @@ pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
                             focus.set(None);
                         },
                         name: param_name,
+                        nesting_level: nesting_level,
                         default: default_expr
                     }
                 },
@@ -109,6 +110,7 @@ pub fn LambdaParameter(
     onfocusout: Option<EventHandler<Event<FocusData>>>,
     name: String,
     default: Option<SyntaxNode>,
+    nesting_level: u16,
 ) -> Element {
     if let Some(default_expr) = default {
         rsx! {
@@ -131,11 +133,6 @@ pub fn LambdaParameter(
                                 oninput.unwrap().call(evt)
                             }
                         },
-                        onfocusout: move |evt| {
-                            if onfocusout.is_some() {
-                                onfocusout.unwrap().call(evt)
-                            }
-                        },
                         value: "{name.trim()}",
                     }
                     dioxus_free_icons::Icon {
@@ -147,7 +144,7 @@ pub fn LambdaParameter(
                     class: "lambda-parameter-default",
                     expression_components::ExpressionUI { 
                         ptr: SyntaxNodePtr::new(&default_expr), 
-                        nesting_level: 0 
+                        nesting_level: nesting_level + 1
                     }
                 }
             }

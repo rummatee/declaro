@@ -195,6 +195,7 @@ nav a:after {
 
 .expression-type-menu {
   position: absolute;
+  display: block !important;
   top: 25px;
   right: 10px;
   background-color: #fff;
