@@ -123,7 +123,16 @@ nav a:after {
   cursor: pointer;
 }
 
+.lambda-symbol {
+  font-weight: bold;
+  margin-right: 0em;
+  margin-left: 1em;
+  display: inline-block;
+  font-size: 1.3em;
+}
+
 .lambda-parameters {
+  display: inline-block;
   list-style-type: none;
   margin-top: 0.5em;
 }
@@ -145,6 +154,17 @@ nav a:after {
   list-style-type: none;
   display: flex;
   gap: 2em;
+}
+
+.lambda-parameter {
+  background: none;
+  border: none;
+}
+
+.lambda-parameter-default-icon {
+  margin-left: 1em;
+  cursor: pointer;
+  opacity: 0.4;
 }
 
 .fallback-expression-input {
@@ -175,6 +195,7 @@ nav a:after {
 
 .expression-type-menu {
   position: absolute;
+  display: block !important;
   top: 25px;
   right: 10px;
   background-color: #fff;

@@ -2,4 +2,4 @@
 source: src/components/lambda.rs
 expression: html
 ---
-<div class="lambda-node"><h3>Lambda Function</h3><div class="lambda-parameters"><h4>Parameters:</h4><ul><li>var1</li><li>var2 ? &#34;default&#34; </li></ul></div><div>ExpressionUI for props: ExpressionUIProps { ptr: SyntaxNodePtr { kind: ATTR_SET, range: 38..40 }, nesting_level: 1 }</div></div>
+<div class="lambda-node"><div class="lambda-symbol">λ</div><div class="lambda-parameters"><ul><div class="lambda-parameter">var1</div><div class="lambda-parameter" title="&#34;default&#34;">var2</div></ul></div><div>ExpressionUI for props: ExpressionUIProps { ptr: SyntaxNodePtr { kind: ATTR_SET, range: 38..40 }, nesting_level: 1 }</div></div>
