@@ -176,8 +176,8 @@ pub mod functions {
         let scopes = snapshot.scopes(analysis.1)?;
         let expr_id = snapshot
             .source_map(analysis.1).unwrap()
-            .expr_for_node(SyntaxNodePtr::new(node)).ok_or(BindingsRetrievalError::GetExprIdError)?;
-        let scope_id = scopes.scope_for_expr(expr_id).ok_or(BindingsRetrievalError::GetScopeForExprError)?;
+            .expr_for_node(SyntaxNodePtr::new(node)).ok_or(BindingsRetrievalError::ExprId)?;
+        let scope_id = scopes.scope_for_expr(expr_id).ok_or(BindingsRetrievalError::ScopeForExpr)?;
         Ok(scopes
             .ancestors(scope_id)
             .filter_map(|scope| scope.as_definitions())
@@ -191,11 +191,11 @@ pub mod functions {
 #[derive(Error, Debug)]
 pub enum BindingsRetrievalError {
     #[error("Failed getting scopes")]
-    GetScopesError(#[from] ide::Cancelled),
+    Scopes(#[from] ide::Cancelled),
     #[error("Failed getting expression id")]
-    GetExprIdError,
+    ExprId,
     #[error("Failed getting scope for expression")]
-    GetScopeForExprError,
+    ScopeForExpr,
 }
 
 #[derive(Debug, PartialEq, Eq)]
