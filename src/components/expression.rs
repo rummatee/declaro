@@ -14,6 +14,7 @@ use crate::ast::functions::{update_node_value, path_from_root};
 
 use crate::components::attribute_set::AttributeSetUI;
 use crate::components::lambda::LambdaUI;
+use crate::components::let_in::LetInUI;
 
 #[double]
 use crate::components::ref_input::components as ref_input_components;
@@ -49,6 +50,7 @@ fn can_use_non_fallback_ui(node: &SyntaxNode) -> bool {
         syntax::ast::Lambda(_) => true,
         syntax::ast::String(_) => true,
         syntax::ast::Ref(_) => true,
+        syntax::ast::LetIn(_) => true,
         _ => false,
         }
     }
@@ -96,6 +98,9 @@ pub mod components {
                 syntax::ast::Lambda(_) => {
                     link_or_element(&node, nesting_level, rsx! { LambdaUI { ptr:ptr, nesting_level: next_level }  })
                 },
+                syntax::ast::LetIn(_) => {
+                    link_or_element(&node, nesting_level, rsx! { LetInUI { ptr:ptr, nesting_level: next_level }  })
+                },
                 syntax::ast::String(_) => rsx! { string_input_components::StringInput { ptr:ptr } },
                 syntax::ast::Ref(_) => rsx! { ref_input_components::RefInput { ptr:ptr } },
                 _ => rsx! { FallbackExpressionUI { ..props }  },
@@ -105,6 +110,7 @@ pub mod components {
             match node_ref {
                 syntax::ast::AttrSet(_) => if decide_link_or_element(&node, nesting_level) {"atom"} else {"composed"},
                 syntax::ast::Lambda(_) => if decide_link_or_element(&node, nesting_level) {"atom"} else {"composed"},
+                syntax::ast::LetIn(_) => if decide_link_or_element(&node, nesting_level) {"atom"} else {"composed"},
                 syntax::ast::String(_) => "atom",
                 syntax::ast::Ref(_) => "atom",
                 _ => "atom",
@@ -113,6 +119,7 @@ pub mod components {
         let menu_items = vec![
             ("Attribute Set", "{}") ,
             ("Lambda", "{}:{}"),
+            ("Let In", "let a = 1; in {}"),
             ("String", "\"\""),
             ("Reference", "ref"),
         ];
@@ -292,6 +299,7 @@ mod tests {
     expression_ui_tests! {
         (test_expression_ui_attrset, "{ a = 1; b = 2; }", syntax::ast::AttrSet),
         (test_expression_ui_lambda, "{ var1, var2 ? \"default\" } : {}", syntax::ast::Lambda),
+        (test_expression_ui_let_in, "let a = 1 in {}", syntax::ast::LetIn),
         (test_expression_ui_reference, "foo", syntax::ast::Ref),
         (test_expression_ui_string, "\"a string\"", syntax::ast::String),
     }

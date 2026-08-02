@@ -65,7 +65,7 @@ nav a:after {
   margin-left: 10px;
 }
 
-.attribute-set {
+.binding-set {
   display: flex;
   flex-direction: column;
   border: 2px solid #aaa;
@@ -91,7 +91,7 @@ nav a:after {
   outline: none;
 }
 
-.attribute-set-add {
+.add-binding {
   border: 1px solid #aaa;
   border-radius: 100%;
   width: 2em;

@@ -2,4 +2,4 @@
 source: src/components/attribute_set.rs
 expression: html
 ---
-<div class="attribute-set"><div class="attribute-item"><label class="attribute-label">a </label><div>ExpressionUI for props: ExpressionUIProps { ptr: SyntaxNodePtr { kind: LITERAL, range: 27..28 }, nesting_level: 1 }</div></div><div class="attribute-item"><label class="attribute-label">b </label><div>ExpressionUI for props: ExpressionUIProps { ptr: SyntaxNodePtr { kind: LITERAL, range: 46..47 }, nesting_level: 1 }</div></div><span class="attribute-set-add">+</span></div>
+<div class="attribute-set binding-set"><div class="attribute-item"><label class="attribute-label">a </label><div>ExpressionUI for props: ExpressionUIProps { ptr: SyntaxNodePtr { kind: LITERAL, range: 27..28 }, nesting_level: 1 }</div></div><div class="attribute-item"><label class="attribute-label">b </label><div>ExpressionUI for props: ExpressionUIProps { ptr: SyntaxNodePtr { kind: LITERAL, range: 46..47 }, nesting_level: 1 }</div></div><span class="add-binding">+</span></div>

@@ -2,6 +2,7 @@ pub mod attribute_set;
 pub mod string_input;
 pub mod ref_input;
 pub mod lambda;
+pub mod let_in;
 pub mod expression;
 use dioxus::prelude::*;
 use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
