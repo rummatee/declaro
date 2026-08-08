@@ -89,6 +89,10 @@ pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     rsx! {
         div {
             class: "let-in",
+            h3 {
+                class: "binding-set-header let-header",
+                "let"
+            }
             div {
                 class: "let-in-bindings binding-set",
                 { elements }
@@ -120,6 +124,10 @@ pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
                     },
                     "+"
                 }
+            }
+            h3 {
+                class: "binding-set-header in-header",
+                "in"
             }
             ExpressionUI{ ptr: body_pointer, nesting_level: nesting_level}
         }
