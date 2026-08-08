@@ -5,6 +5,7 @@ use dioxus::prelude::*;
 use mockall_double::double;
 use focusable_macro::focusable;
 use crate::ast::functions::update_node_value;
+use crate::components::expression::components::ExpressionUI;
 use std::iter::zip;
 
 #[double]
@@ -12,12 +13,16 @@ use crate::components::expression::components as expression_components;
 
 #[double]
 use crate::ast::hooks as ast_hooks;
+#[double]
+use crate::utils::hooks;
 
 #[component]
-pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
-    let set = ast_hooks::use_ast_node::<syntax::ast::AttrSet>(ptr);
-    let bindings = set.read().bindings();
+pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
+    let expression = ast_hooks::use_ast_node::<syntax::ast::LetIn>(ptr);
+    let analysis = hooks::use_analysis_host();
+    let bindings = expression.read().bindings();
     let bindings_clone = bindings.clone();
+    let body_pointer = SyntaxNodePtr::new(expression.read().body().unwrap().syntax());
     let enumerated = bindings.clone().enumerate();
     let focus = use_signal::<Option<i8>>(|| None);
     let labels = focusable!({
@@ -37,34 +42,13 @@ pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Ele
                     class: "attribute-label",
                     value: "{label.trim()}",
                     oninput: move |evt| {
-                        let new_label = evt.value().clone();
-                        let value = attr.value().unwrap();
-                        let new_attribute_set = format!("{{{}}}",enumerated.clone().map(|(i, binding)| {
-                            if i == indexed_part.0 {
-                                format!("{} = {};", new_label, value.syntax().text())
-                            } else {
-                                match binding {
-                                    syntax::ast::Binding::AttrpathValue(attr) => {
-                                        let label = attr.attrpath()
-                                            .map(|ap| ap.syntax().text().to_string())
-                                            .unwrap_or("unknown".to_string());
-                                        let value = attr.value().unwrap();
-                                        format!("{} = {};", label, value.syntax().text())
-                                    },
-                                    _ => "".to_string(),
-                                }
-                            }
-
-                        }).collect::<Vec<_>>().join("\n"));
-                        update_node_value(
-                            set.read().syntax().clone(),
-                            &new_attribute_set,
-                            |syntax| {
-                                <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                                    .and_then(|sf| sf.expr())
-                                    .map(|expr| expr.syntax().clone())
-                            }
-                        );
+                        let snapshot = analysis.read().0.snapshot();
+                        let fpos = ide::FilePos { file_id: analysis.read().1, pos: attr.attrpath().unwrap().syntax().text_range().start()};
+                        let result = snapshot.rename(fpos, evt.value().as_ref());
+                        println!("Rename result: {:?}", result);
+                        result.unwrap().unwrap().content_edits.get(&analysis.read().1).unwrap().iter().for_each(|edit| {
+                            edit.apply(&mut use_context::<Signal<String>>().write());
+                        });
                     },
                     onfocusout: move |_| {
                         focus.set(None);
@@ -104,36 +88,48 @@ pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Ele
     });
     rsx! {
         div {
-            class: "attribute-set binding-set",
-            { elements }
-            span { 
-                class: "add-binding",
-                onclick: move |_| {
-                    let new_attribute_set = bindings_clone.clone().map(|binding| {
-                        match binding {
-                            syntax::ast::Binding::AttrpathValue(attr) => {
-                    let label = attr.attrpath()
-                        .map(|ap| ap.syntax().text().to_string())
-                        .unwrap_or("unknown".to_string());
-                    let value = attr.value().unwrap();
-                    format!("{} = {};", label, value.syntax().text())
-                            },
-                            _ => "".to_string(),
-                        }
-                    }).collect::<Vec<_>>().join("\n");
-                    let new_attribute_set_with_new_binding = format!("{{{}\nnew_attr = 0;}}", new_attribute_set);
-                    update_node_value(
-                        set.read().syntax().clone(),
-                        &new_attribute_set_with_new_binding,
-                        |syntax| {
-                            <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                    .and_then(|sf| sf.expr())
-                    .map(|expr| expr.syntax().clone())
-                        }
-                    );
-                },
-                "+"
+            class: "let-in",
+            h3 {
+                class: "binding-set-header let-header",
+                "let"
             }
+            div {
+                class: "let-in-bindings binding-set",
+                { elements }
+                span { 
+                    class: "add-binding",
+                    onclick: move |_| {
+                        let new_binding_set = bindings_clone.clone().map(|binding| {
+                            match binding {
+                                syntax::ast::Binding::AttrpathValue(attr) => {
+                        let label = attr.attrpath()
+                            .map(|ap| ap.syntax().text().to_string())
+                            .unwrap_or("unknown".to_string());
+                        let value = attr.value().unwrap();
+                        format!("{} = {};", label, value.syntax().text())
+                                },
+                                _ => "".to_string(),
+                            }
+                        }).collect::<Vec<_>>().join("\n");
+                        let new_attribute_set_with_new_binding = format!("let {} new = \"value\"; in {}", new_binding_set, expression.read().body().unwrap().syntax().text());
+                        update_node_value(
+                            expression.read().syntax().clone(),
+                            &new_attribute_set_with_new_binding,
+                            |syntax| {
+                                <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
+                        .and_then(|sf| sf.expr())
+                        .map(|expr| expr.syntax().clone())
+                            }
+                        );
+                    },
+                    "+"
+                }
+            }
+            h3 {
+                class: "binding-set-header in-header",
+                "in"
+            }
+            ExpressionUI{ ptr: body_pointer, nesting_level: nesting_level}
         }
     }
 }
@@ -145,25 +141,29 @@ mod tests {
     use crate::ast::mock_hooks::use_ast_node_context;
     use crate::components::expression::mock_components::ExpressionUI_context;
     use serial_test::serial;
+    use ide::AnalysisHost;
 
     #[test]
     #[serial]
-    fn test_attribute_set_ui() {
+    fn test_let_in_ui() {
         let use_ast_node_ctx = use_ast_node_context();
         let expression_ui_ctx = ExpressionUI_context();
+        let use_analysis_host_ctx = crate::utils::mock_hooks::use_analysis_host_context();
         const SOURCE: &str = r#"
-        {
-            a = 1;
-            b = 2;
-        }
+        let a = 1; b = 2; in { a + b }
         "#;
         use_ast_node_ctx.expect()
             .returning(|_| {
                 Memo::new(|| {
                     let syntax_node = syntax::parse_file(SOURCE).syntax_node();
                     let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
-                    syntax::ast::AttrSet::cast(expr.syntax().clone()).unwrap()
+                    syntax::ast::LetIn::cast(expr.syntax().clone()).unwrap()
                 })
+            });
+        use_analysis_host_ctx.expect()
+            .returning(|| {
+            let analysis_host = AnalysisHost::new_single_file(SOURCE);
+            Signal::new(analysis_host)
             });
         expression_ui_ctx.expect()
             .returning(|props| {
@@ -172,7 +172,7 @@ mod tests {
         let mut vdom = VirtualDom::new(|| {
             let syntax_node = syntax::parse_file(SOURCE).syntax_node();
             let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(&syntax_node));
-            rsx! { AttributeSetUI { ptr: ptr_signal, nesting_level: 1 } }
+            rsx! { LetInUI { ptr: ptr_signal, nesting_level: 1 } }
         });
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);

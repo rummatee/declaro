@@ -5,8 +5,11 @@
   ...
 }: {
   someAttribute = "This is an example attribute ${variable1}";
-  nested = {
+  nested = let
+    inner = "innerValue";
+  in {
     attribute = "value";
+    innerAttribute = inner;
   };
   a.b.c = "deepValue";
   reference = variable2;
