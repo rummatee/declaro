@@ -38,7 +38,7 @@ dx run
 
 ## Implemented
 - Open and save files
-- Edit simple strings, variable references, attribute-sets, lambdas
+- Edit simple strings, variable references, attribute-sets, lambdas, let-in-expressions
 ![screenshot of Declaro app opened example file, showing a lambda, an attribute set, a text input, a nested set and a reference selection](doc/Screenshot_main.png)
 - Navigate nested structure
 ![screenshot showing the app navigated to a sub attribute](doc/Screenshot_nested.png)
@@ -47,7 +47,7 @@ dx run
 
 
 ## Roadmap
-- Support lists, with- and let-expressions, assertions, inherit, imports, numbers, booleans and paths
+- Support lists, with-expressions, assertions, inherit, imports, numbers, booleans and paths
 - Show available attributes, defaults and help for NixOS modules and flakes
 - Visualize diffs between two Nix configurations
 - Undo and Redo history
