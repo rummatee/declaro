@@ -21,9 +21,11 @@ fn main() {
 #[component]
 fn App() -> Element {
     let mut file_path = use_signal(|| {PathBuf::from("./example.nix")});
+    let contents = utils::hooks::use_derivation(move || {
+        fs::read_to_string(file_path.read().clone()).expect("Could not read file")
+    });
     let ast = utils::hooks::use_derivation(move || {
-        let contents = fs::read_to_string(file_path.read().clone()).expect("Could not read file");
-        syntax::parse_file(&contents).syntax_node()
+        syntax::parse_file(contents.read().as_str()).syntax_node()
     });
     let analysis_host = utils::hooks::use_derivation(move || {
         let root = ast.read();
@@ -39,6 +41,7 @@ fn App() -> Element {
         let serialized = node.to_string();
         ide::AnalysisHost::new_single_file(&serialized)
     });
+    use_context_provider(|| contents);
     use_context_provider(|| ast);
     use_context_provider(|| analysis_host);
     rsx! {

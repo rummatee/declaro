@@ -13,10 +13,13 @@ use crate::components::expression::components as expression_components;
 
 #[double]
 use crate::ast::hooks as ast_hooks;
+#[double]
+use crate::utils::hooks;
 
 #[component]
 pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let expression = ast_hooks::use_ast_node::<syntax::ast::LetIn>(ptr);
+    let analysis = hooks::use_analysis_host();
     let bindings = expression.read().bindings();
     let bindings_clone = bindings.clone();
     let body_pointer = SyntaxNodePtr::new(expression.read().body().unwrap().syntax());
@@ -39,34 +42,13 @@ pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
                     class: "attribute-label",
                     value: "{label.trim()}",
                     oninput: move |evt| {
-                        let new_label = evt.value().clone();
-                        let value = attr.value().unwrap();
-                        let new_expression = format!("let {} in {}",enumerated.clone().map(|(i, binding)| {
-                            if i == indexed_part.0 {
-                                format!("{} = {};", new_label, value.syntax().text())
-                            } else {
-                                match binding {
-                                    syntax::ast::Binding::AttrpathValue(attr) => {
-                                        let label = attr.attrpath()
-                                            .map(|ap| ap.syntax().text().to_string())
-                                            .unwrap_or("unknown".to_string());
-                                        let value = attr.value().unwrap();
-                                        format!("{} = {};", label, value.syntax().text())
-                                    },
-                                    _ => "".to_string(),
-                                }
-                            }
-
-                        }).collect::<Vec<_>>().join("\n"), expression.read().body().unwrap().syntax().text());
-                        update_node_value(
-                            expression.read().syntax().clone(),
-                            &new_expression,
-                            |syntax| {
-                                <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                                    .and_then(|sf| sf.expr())
-                                    .map(|expr| expr.syntax().clone())
-                            }
-                        );
+                        let snapshot = analysis.read().0.snapshot();
+                        let fpos = ide::FilePos { file_id: analysis.read().1, pos: attr.attrpath().unwrap().syntax().text_range().start()};
+                        let result = snapshot.rename(fpos, evt.value().as_ref());
+                        println!("Rename result: {:?}", result);
+                        result.unwrap().unwrap().content_edits.get(&analysis.read().1).unwrap().iter().for_each(|edit| {
+                            edit.apply(&mut use_context::<Signal<String>>().write());
+                        });
                     },
                     onfocusout: move |_| {
                         focus.set(None);
