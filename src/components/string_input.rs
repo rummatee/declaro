@@ -78,12 +78,7 @@ pub mod components {
 
                             update_node_value(
                                 node.read().syntax().clone(),
-                                &new_value,
-                                |syntax| {
-                                    <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                                        .and_then(|sf| sf.expr())
-                                        .map(|expr| expr.syntax().clone())
-                                }
+                                &new_value
                             );
                         }
                     },
@@ -135,12 +130,7 @@ pub mod components {
 
                             update_node_value(
                                 node.read().syntax().clone(),
-                                &new_value,
-                                |syntax| {
-                                    <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                                        .and_then(|sf| sf.expr())
-                                        .map(|expr| expr.syntax().clone())
-                                }
+                                &new_value
                             );
                         },
                         {options}

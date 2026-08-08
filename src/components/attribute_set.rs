@@ -37,34 +37,10 @@ pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Ele
                     class: "attribute-label",
                     value: "{label.trim()}",
                     oninput: move |evt| {
-                        let new_label = evt.value().clone();
-                        let value = attr.value().unwrap();
-                        let new_attribute_set = format!("{{{}}}",enumerated.clone().map(|(i, binding)| {
-                            if i == indexed_part.0 {
-                                format!("{} = {};", new_label, value.syntax().text())
-                            } else {
-                                match binding {
-                                    syntax::ast::Binding::AttrpathValue(attr) => {
-                                        let label = attr.attrpath()
-                                            .map(|ap| ap.syntax().text().to_string())
-                                            .unwrap_or("unknown".to_string());
-                                        let value = attr.value().unwrap();
-                                        format!("{} = {};", label, value.syntax().text())
-                                    },
-                                    _ => "".to_string(),
-                                }
-                            }
-
-                        }).collect::<Vec<_>>().join("\n"));
-                        update_node_value(
-                            set.read().syntax().clone(),
-                            &new_attribute_set,
-                            |syntax| {
-                                <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                                    .and_then(|sf| sf.expr())
-                                    .map(|expr| expr.syntax().clone())
-                            }
-                        );
+                        let new_label = format!("{} ", evt.value().clone());
+                        let range = attr.attrpath().unwrap().syntax().text_range();
+                        let mut source = use_context::<Signal<String>>();
+                        source.write().replace_range(usize::from(range.start())..usize::from(range.end()), &new_label);
                     },
                     onfocusout: move |_| {
                         focus.set(None);
@@ -124,12 +100,7 @@ pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Ele
                     let new_attribute_set_with_new_binding = format!("{{{}\nnew_attr = 0;}}", new_attribute_set);
                     update_node_value(
                         set.read().syntax().clone(),
-                        &new_attribute_set_with_new_binding,
-                        |syntax| {
-                            <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                    .and_then(|sf| sf.expr())
-                    .map(|expr| expr.syntax().clone())
-                        }
+                        &new_attribute_set_with_new_binding
                     );
                 },
                 "+"

@@ -127,48 +127,14 @@ pub mod functions {
         }
     }
 
-    pub fn update_node_value<F>(
+    pub fn update_node_value(
         node: SyntaxNode,
         new_value: &str,
-        extract_new_node: F,
     )
-    where
-        F: Fn(&SyntaxNode) -> Option<SyntaxNode> + 'static,
     {
-        let mut ast = hooks::use_syntax_node();
-        let new_syntax = syntax::parse_file(new_value).syntax_node();
-        if let Some(new_syntax) = extract_new_node(&new_syntax) {
-            let new_root = SyntaxNode::new_root(
-                replace_expr(&node, new_syntax)
-            );
-            ast.set(new_root);
-        }
-    }
-
-    fn replace_expr(
-        old: &SyntaxNode,
-        new: SyntaxNode,
-    ) -> rowan::GreenNode {
-        let parent = old.parent().expect("expr must have parent");
-
-        let mut children: Vec<rowan::NodeOrToken<rowan::GreenNode,rowan::GreenToken>> =
-            parent.green().children().map(|c| {
-                c.to_owned()
-            }).collect();
-
-        let idx = parent
-            .children_with_tokens()
-            .position(|c| c.as_node().is_some() && c.as_node().unwrap() == old)
-            .unwrap();
-
-        children.iter().for_each(|c| println!("Child: {:?}", c.kind()));
-        children[idx] = rowan::NodeOrToken::Node(new.green().into_owned());
-        println!("Replaced child at index {}, with {:?}", idx, new);
-
-
-        let new_parent = rowan::GreenNode::new(rowan::SyntaxKind(parent.kind() as u16), children);
-
-        parent.replace_with(new_parent)
+        let range = node.text_range();
+        let mut source = use_context::<Signal<String>>();
+        source.write().replace_range(usize::from(range.start())..usize::from(range.end()), &new_value);
     }
 
     pub fn get_bindings_in_scope(node: &SyntaxNode, analysis: &(AnalysisHost, FileId)) -> Result<Vec<String>, BindingsRetrievalError> {
@@ -273,11 +239,7 @@ mod tests {
                 .return_const_st( ast_signal );
             let node = functions::resolve_path(&ast, &AstPath::from_str("0.1.1").unwrap()).expect("Node should exist");
             let new_value = "2";
-            functions::update_node_value(node.clone(), new_value, |new_syntax| {
-                <syntax::ast::SourceFile as AstNode>::cast(new_syntax.clone())
-                    .and_then(|sf| sf.expr())
-                    .map(|expr| expr.syntax().clone())
-            });
+            functions::update_node_value(node.clone(), new_value);
             let updated_ast = ast_signal.read().clone();
             let updated_node = functions::resolve_path(&updated_ast, &AstPath::from_str("0.1.1").unwrap()).expect("Node should exist");
             assert_eq!(updated_node.to_string(), "2");

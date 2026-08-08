@@ -31,31 +31,13 @@ pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
                     preparation = {
                         let param_name = indexed_part.1.name().map(|name| name.syntax().text().to_string()).unwrap_or_default();
                         let default_expr = indexed_part.1.default_expr().map(|expr| expr.syntax().clone());
-                        let default_expr_text = default_expr.clone().map(|expr| expr.text().to_string());
-                        let body = lambda.read().body().unwrap();
                     },
                     content = {
                         oninput: move |evt: Event<FormData>| {
                             let new_name = evt.value().clone();
-                            let new_lambda = format!("{{{}}}: {}",enumerated_params.clone().map(|(i, param)| {
-                                if i == indexed_part.0 {
-                                    match default_expr_text.clone() {
-                                        Some(default) => format!("{} ? {}", new_name, default),
-                                        None => new_name.clone(),
-                                    }
-                                } else {
-                                    param.syntax().text().to_string()
-                                }
-
-                            }).collect::<Vec<_>>().join(", "), body.clone().syntax().text());
                             update_node_value(
-                                lambda.read().syntax().clone(),
-                                &new_lambda,
-                                |syntax| {
-                                    <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                                        .and_then(|sf| sf.expr())
-                                        .map(|expr| expr.syntax().clone())
-                                }
+                                indexed_part.1.syntax().clone(),
+                                &new_name
                             );
                         },
                         onfocusout: move |_| {

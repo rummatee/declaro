@@ -114,12 +114,7 @@ pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
                         let new_attribute_set_with_new_binding = format!("let {} new = \"value\"; in {}", new_binding_set, expression.read().body().unwrap().syntax().text());
                         update_node_value(
                             expression.read().syntax().clone(),
-                            &new_attribute_set_with_new_binding,
-                            |syntax| {
-                                <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                        .and_then(|sf| sf.expr())
-                        .map(|expr| expr.syntax().clone())
-                            }
+                            &new_attribute_set_with_new_binding
                         );
                     },
                     "+"

@@ -49,12 +49,7 @@ pub mod components {
 
                     ast_functions::update_node_value(
                         node.read().syntax().clone(),
-                        &e.value(),
-                        |syntax| {
-                            <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                                .and_then(|sf| sf.expr())
-                                .map(|expr| expr.syntax().clone())
-                        }
+                        &e.value()
                     );
                 },
                 {options}
