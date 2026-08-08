@@ -141,12 +141,14 @@ mod tests {
     use crate::ast::mock_hooks::use_ast_node_context;
     use crate::components::expression::mock_components::ExpressionUI_context;
     use serial_test::serial;
+    use ide::AnalysisHost;
 
     #[test]
     #[serial]
     fn test_let_in_ui() {
         let use_ast_node_ctx = use_ast_node_context();
         let expression_ui_ctx = ExpressionUI_context();
+        let use_analysis_host_ctx = crate::utils::mock_hooks::use_analysis_host_context();
         const SOURCE: &str = r#"
         let a = 1; b = 2; in { a + b }
         "#;
@@ -157,6 +159,11 @@ mod tests {
                     let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
                     syntax::ast::LetIn::cast(expr.syntax().clone()).unwrap()
                 })
+            });
+        use_analysis_host_ctx.expect()
+            .returning(|| {
+            let analysis_host = AnalysisHost::new_single_file(SOURCE);
+            Signal::new(analysis_host)
             });
         expression_ui_ctx.expect()
             .returning(|props| {

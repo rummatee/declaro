@@ -69,7 +69,7 @@ mod tests {
     use serial_test::serial;
     use super::*;
     use crate::ast::mock_hooks::use_ast_node_context;
-    use ide::{AnalysisHost};
+    use ide::AnalysisHost;
 
     #[test]
     #[serial]

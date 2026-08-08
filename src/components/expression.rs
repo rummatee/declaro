@@ -232,6 +232,7 @@ mod tests {
     use super::*;
     use crate::ast::mock_hooks::{use_ast_node_context, use_syntax_node_context};
     use serial_test::serial;
+    use ide::AnalysisHost;
 
     macro_rules! expression_ui_tests {
         ($(($name:ident, $source:expr, $ty:ty)),* $(,)?) => {
@@ -252,6 +253,12 @@ mod tests {
                                 let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
                                 <$ty>::cast(expr.syntax().clone()).unwrap()
                             })
+                        });
+                    let use_analysis_host_ctx = crate::utils::mock_hooks::use_analysis_host_context();
+                    use_analysis_host_ctx.expect()
+                        .returning(|| {
+                        let analysis_host = AnalysisHost::new_single_file($source);
+                        Signal::new(analysis_host)
                         });
                     let expression_ui_ctx = super::mock_components::ExpressionUI_context();
                     expression_ui_ctx.expect()

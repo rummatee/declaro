@@ -2,4 +2,4 @@
 source: src/components/let_in.rs
 expression: html
 ---
-<div class="let-in"><div class="let-in-bindings binding-set"><div class="attribute-item"><label class="attribute-label">a </label><div>ExpressionUI for props: ExpressionUIProps { ptr: SyntaxNodePtr { kind: LITERAL, range: 17..18 }, nesting_level: 1 }</div></div><div class="attribute-item"><label class="attribute-label">b </label><div>ExpressionUI for props: ExpressionUIProps { ptr: SyntaxNodePtr { kind: LITERAL, range: 24..25 }, nesting_level: 1 }</div></div><span class="add-binding">+</span></div></div>
+<div class="let-in"><h3 class="binding-set-header let-header">let</h3><div class="let-in-bindings binding-set"><div class="attribute-item"><label class="attribute-label">a </label><div>ExpressionUI for props: ExpressionUIProps { ptr: SyntaxNodePtr { kind: LITERAL, range: 17..18 }, nesting_level: 1 }</div></div><div class="attribute-item"><label class="attribute-label">b </label><div>ExpressionUI for props: ExpressionUIProps { ptr: SyntaxNodePtr { kind: LITERAL, range: 24..25 }, nesting_level: 1 }</div></div><span class="add-binding">+</span></div><h3 class="binding-set-header in-header">in</h3></div>
