@@ -4,7 +4,7 @@ use syntax::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;
 use focusable_macro::focusable;
-use crate::ast::functions::update_node_value;
+use crate::ast::functions::add_binding;
 use crate::components::expression::components::ExpressionUI;
 use std::iter::zip;
 
@@ -21,7 +21,6 @@ pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let expression = ast_hooks::use_ast_node::<syntax::ast::LetIn>(ptr);
     let analysis = hooks::use_analysis_host();
     let bindings = expression.read().bindings();
-    let bindings_clone = bindings.clone();
     let body_pointer = SyntaxNodePtr::new(expression.read().body().unwrap().syntax());
     let enumerated = bindings.clone().enumerate();
     let focus = use_signal::<Option<i8>>(|| None);
@@ -70,7 +69,7 @@ pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
         }
         ]
     });
-    let elements = zip(labels,bindings).map(|(label, binding)| {
+    let elements = zip(labels,bindings.clone()).map(|(label, binding)| {
         let attr = match binding {
             syntax::ast::Binding::AttrpathValue(attr) => attr,
             _ => return rsx! { div { "Unsupported binding type" } },
@@ -99,23 +98,7 @@ pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
                 span { 
                     class: "add-binding",
                     onclick: move |_| {
-                        let new_binding_set = bindings_clone.clone().map(|binding| {
-                            match binding {
-                                syntax::ast::Binding::AttrpathValue(attr) => {
-                        let label = attr.attrpath()
-                            .map(|ap| ap.syntax().text().to_string())
-                            .unwrap_or("unknown".to_string());
-                        let value = attr.value().unwrap();
-                        format!("{} = {};", label, value.syntax().text())
-                                },
-                                _ => "".to_string(),
-                            }
-                        }).collect::<Vec<_>>().join("\n");
-                        let new_attribute_set_with_new_binding = format!("let {} new = \"value\"; in {}", new_binding_set, expression.read().body().unwrap().syntax().text());
-                        update_node_value(
-                            expression.read().syntax().clone(),
-                            &new_attribute_set_with_new_binding
-                        );
+                        add_binding(bindings.clone());
                     },
                     "+"
                 }

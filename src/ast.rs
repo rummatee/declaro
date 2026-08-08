@@ -1,5 +1,5 @@
 use ide::{AnalysisHost, FileId};
-use syntax::{SyntaxNode, SyntaxNodePtr, NixLanguage, ast::AstNode};
+use syntax::{SyntaxNode, SyntaxNodePtr, NixLanguage, ast::AstNode, ast::AstChildren};
 use dioxus::prelude::*;
 use mockall_double::double;
 use thiserror::Error;
@@ -127,14 +127,17 @@ pub mod functions {
         }
     }
 
-    pub fn update_node_value(
-        node: SyntaxNode,
-        new_value: &str,
-    )
+    pub fn update_node_value(node: SyntaxNode, new_value: &str)
     {
         let range = node.text_range();
         let mut source = use_context::<Signal<String>>();
-        source.write().replace_range(usize::from(range.start())..usize::from(range.end()), &new_value);
+        source.write().replace_range(usize::from(range.start())..usize::from(range.end()), new_value);
+    }
+
+    pub fn add_binding<N: AstNode>(nodes: AstChildren<N>)
+    {
+        let mut source = use_context::<Signal<String>>();
+        source.write().insert_str(nodes.last().map(|node| usize::from(node.syntax().text_range().end())).unwrap_or(0), "new_attr = 0;\n");
     }
 
     pub fn get_bindings_in_scope(node: &SyntaxNode, analysis: &(AnalysisHost, FileId)) -> Result<Vec<String>, BindingsRetrievalError> {
