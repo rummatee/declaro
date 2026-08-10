@@ -1,5 +1,5 @@
 use ide::{AnalysisHost, FileId};
-use syntax::{SyntaxNode, SyntaxNodePtr, NixLanguage, ast::AstNode, ast::AstChildren};
+use syntax::{SyntaxNode, SyntaxNodePtr, NixLanguage, ast::AstNode, ast::AstChildren, SyntaxElement};
 use dioxus::prelude::*;
 use mockall_double::double;
 use thiserror::Error;
@@ -15,6 +15,10 @@ pub struct AstPath {
 #[cfg_attr(test, automock)]
 pub mod hooks {
     use super::*;
+
+    pub fn use_source() -> Signal<String> {
+        use_context::<Signal<String>>()
+    }
 
     pub fn use_syntax_node() -> Signal<SyntaxNode> {
         use_context::<Signal<SyntaxNode>>()
@@ -127,17 +131,19 @@ pub mod functions {
         }
     }
 
-    pub fn update_node_value(node: SyntaxNode, new_value: &str)
+    pub fn update_node_value(node: SyntaxElement, new_value: &str)
     {
         let range = node.text_range();
-        let mut source = use_context::<Signal<String>>();
+        let mut source = hooks::use_source();
         source.write().replace_range(usize::from(range.start())..usize::from(range.end()), new_value);
     }
 
-    pub fn add_binding<N: AstNode>(nodes: AstChildren<N>)
+    pub fn add_binding<T>(nodes: AstChildren<T>)
+    where
+        T: AstNode<Language = NixLanguage> + PartialEq + 'static,
     {
-        let mut source = use_context::<Signal<String>>();
-        source.write().insert_str(nodes.last().map(|node| usize::from(node.syntax().text_range().end())).unwrap_or(0), "new_attr = 0;\n");
+        let mut source = hooks::use_source();
+        source.write().insert_str(nodes.last().map(|node| usize::from(node.syntax().text_range().end())).unwrap_or(0), "\nnew_attr = 0;");
     }
 
     pub fn get_bindings_in_scope(node: &SyntaxNode, analysis: &(AnalysisHost, FileId)) -> Result<Vec<String>, BindingsRetrievalError> {
@@ -236,16 +242,19 @@ mod tests {
                 }
             "#;
             let ast = syntax::parse_file(code).syntax_node();
-            let ast_signal = Signal::new(ast.clone());
-            let use_syntax_node_ctx = mock_hooks::use_syntax_node_context();
-            use_syntax_node_ctx.expect()
-                .return_const_st( ast_signal );
+            let use_source_ctx = mock_hooks::use_source_context();
+            let source_signal = Signal::new(code.to_string());
+            use_source_ctx.expect().return_const_st(source_signal);
             let node = functions::resolve_path(&ast, &AstPath::from_str("0.1.1").unwrap()).expect("Node should exist");
             let new_value = "2";
-            functions::update_node_value(node.clone(), new_value);
-            let updated_ast = ast_signal.read().clone();
-            let updated_node = functions::resolve_path(&updated_ast, &AstPath::from_str("0.1.1").unwrap()).expect("Node should exist");
-            assert_eq!(updated_node.to_string(), "2");
+            functions::update_node_value(node.clone().into(), new_value);
+            let updated_source = source_signal.read().clone();
+            assert_eq!(updated_source, r#"
+                {
+                    a = 1;
+                    b = 2;
+                }
+            "#);
             rsx! { "success" }
         });
         vdom.rebuild_in_place();

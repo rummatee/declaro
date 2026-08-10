@@ -147,7 +147,7 @@ pub mod components {
                             onclick: closure!(move mut menu_open, clone node, |_| {
                                 menu_open.set(false);
                                 update_node_value(
-                                    node.clone(),
+                                    node.clone().into(),
                                     template
                                 );
                             }),
@@ -206,7 +206,7 @@ pub mod components {
                 oninput: move |e| {
                     println!("New value: {}", e.value());
                     update_node_value(
-                        node.read().syntax().clone(),
+                        node.read().syntax().clone().into(),
                         &e.value()
                     );
                 }

@@ -62,23 +62,10 @@ pub mod components {
                                     let new_focus = focus.read().unwrap() + 1;
                                     focus.set(Some(new_focus));
                             }
-                            let new_value_inner = string_parts.clone().map(|part| {
-                                if part.0 == indexed_part.0 {
-                                    own_value.clone()
-                                } else {
-                                    match part.1 {
-                                        syntax::ast::StringPart::Fragment(t) => t.text().to_string(),
-                                        syntax::ast::StringPart::Dynamic(t) => format!("${{{}}}", t.expr().unwrap().syntax().text()),
-                                        _ => "".to_string(),
-                                    }
-                                }
-                            }).collect::<Vec<_>>().join("");
-
-                            let new_value = format!("\"{}\"", new_value_inner);
 
                             update_node_value(
-                                node.read().syntax().clone(),
-                                &new_value
+                                text.clone().into(),
+                                &own_value
                             );
                         }
                     },
@@ -114,23 +101,10 @@ pub mod components {
                     content = { 
                         class: "ref-input simple-input",
                         onchange: move |e| {
-                            let new_value_inner = string_parts.clone().map(|part| {
-                                if part.0 == indexed_part.0 {
-                                    format!("${{{}}}", e.value())
-                                } else {
-                                    match part.1 {
-                                        syntax::ast::StringPart::Fragment(t) => t.text().to_string(),
-                                        syntax::ast::StringPart::Dynamic(t) => format!("${{{}}}", t.expr().unwrap().syntax().text()),
-                                        _ => "".to_string(),
-                                    }
-                                }
-                            }).collect::<Vec<_>>().join("");
-
-                            let new_value = format!("\"{}\"", new_value_inner);
 
                             update_node_value(
-                                node.read().syntax().clone(),
-                                &new_value
+                                dynamic.expr().unwrap().syntax().clone().into(),
+                                &e.value().as_ref()
                             );
                         },
                         {options}

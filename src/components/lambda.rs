@@ -36,7 +36,7 @@ pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
                         oninput: move |evt: Event<FormData>| {
                             let new_name = evt.value().clone();
                             update_node_value(
-                                indexed_part.1.syntax().clone(),
+                                indexed_part.1.syntax().clone().into(),
                                 &new_name
                             );
                         },

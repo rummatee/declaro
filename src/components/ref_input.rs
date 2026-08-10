@@ -48,7 +48,7 @@ pub mod components {
                 onchange: move |e| {
 
                     ast_functions::update_node_value(
-                        node.read().syntax().clone(),
+                        node.read().syntax().clone().into(),
                         &e.value()
                     );
                 },
