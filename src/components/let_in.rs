@@ -4,7 +4,7 @@ use syntax::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;
 use focusable_macro::focusable;
-use crate::ast::functions::add_binding;
+use crate::ast::functions::{add_binding, apply_workspace_edit};
 use crate::components::expression::components::ExpressionUI;
 use std::iter::zip;
 
@@ -13,13 +13,11 @@ use crate::components::expression::components as expression_components;
 
 #[double]
 use crate::ast::hooks as ast_hooks;
-#[double]
-use crate::utils::hooks;
 
 #[component]
 pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let expression = ast_hooks::use_ast_node::<syntax::ast::LetIn>(ptr);
-    let analysis = hooks::use_analysis_host();
+    let analysis = ast_hooks::use_analysis_host();
     let bindings = expression.read().bindings();
     let body_pointer = SyntaxNodePtr::new(expression.read().body().unwrap().syntax());
     let enumerated = bindings.clone().enumerate();
@@ -44,10 +42,7 @@ pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
                         let snapshot = analysis.read().0.snapshot();
                         let fpos = ide::FilePos { file_id: analysis.read().1, pos: attr.attrpath().unwrap().syntax().text_range().start()};
                         let result = snapshot.rename(fpos, evt.value().as_ref());
-                        println!("Rename result: {:?}", result);
-                        result.unwrap().unwrap().content_edits.get(&analysis.read().1).unwrap().iter().for_each(|edit| {
-                            edit.apply(&mut use_context::<Signal<String>>().write());
-                        });
+                        apply_workspace_edit(result.unwrap().unwrap());
                     },
                     onfocusout: move |_| {
                         focus.set(None);
@@ -116,7 +111,7 @@ pub fn LetInUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
 mod tests {
     use insta::assert_snapshot;
     use super::*;
-    use crate::ast::mock_hooks::use_ast_node_context;
+    use crate::ast::mock_hooks::{use_ast_node_context, use_analysis_host_context};
     use crate::components::expression::mock_components::ExpressionUI_context;
     use serial_test::serial;
     use ide::AnalysisHost;
@@ -126,7 +121,7 @@ mod tests {
     fn test_let_in_ui() {
         let use_ast_node_ctx = use_ast_node_context();
         let expression_ui_ctx = ExpressionUI_context();
-        let use_analysis_host_ctx = crate::utils::mock_hooks::use_analysis_host_context();
+        let use_analysis_host_ctx = use_analysis_host_context();
         const SOURCE: &str = r#"
         let a = 1; b = 2; in { a + b }
         "#;

@@ -24,6 +24,10 @@ pub mod hooks {
         use_context::<Signal<SyntaxNode>>()
     }
 
+    pub fn use_analysis_host() -> Signal<(AnalysisHost, FileId)> {
+        use_context::<Signal<(AnalysisHost, FileId)>>()
+    }
+
     pub fn use_ast_node<T>(ptr: ReadSignal<SyntaxNodePtr>) -> Memo<T>
     where
         T: AstNode<Language = NixLanguage> + PartialEq + 'static,
@@ -136,6 +140,16 @@ pub mod functions {
         let range = node.text_range();
         let mut source = hooks::use_source();
         source.write().replace_range(usize::from(range.start())..usize::from(range.end()), new_value);
+    }
+
+    pub fn apply_workspace_edit(edit: ide::WorkspaceEdit) {
+        let mut source = hooks::use_source();
+        let file_id = hooks::use_analysis_host().read().1;
+        let mut file_edits = edit.content_edits.get(&file_id).unwrap().clone();
+        file_edits.sort_by(|a, b| b.delete.start().cmp(&a.delete.start()));
+        for text_edit in file_edits {
+            text_edit.apply(&mut source.write());
+        }
     }
 
     pub fn add_binding<T>(nodes: AstChildren<T>)

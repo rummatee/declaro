@@ -3,7 +3,7 @@ use syntax::ast::AstNode;
 use dioxus::prelude::*;
 use focusable_macro::focusable;
 use mockall_double::double;
-use crate::ast::functions::update_node_value;
+use crate::ast::functions::apply_workspace_edit;
 use dioxus_primitives::collapsible;
 
 #[double]
@@ -16,6 +16,7 @@ use crate::ast::hooks as ast_hooks;
 pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let lambda = ast_hooks::use_ast_node::<syntax::ast::Lambda>(ptr);
     let params = lambda.read().param().unwrap().pat().unwrap().fields();
+    let analysis = ast_hooks::use_analysis_host();
 
     let focus = use_signal::<Option<i8>>(|| None);
     let params_copy = params.clone();
@@ -29,16 +30,16 @@ pub fn LambdaUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
                 focused = {
                     element_type = LambdaParameter,
                     preparation = {
-                        let param_name = indexed_part.1.name().map(|name| name.syntax().text().to_string()).unwrap_or_default();
+                        let param_name_node = indexed_part.1.name().map(|name| name.syntax().clone());
+                        let param_name = param_name_node.clone().map(|node| node.text().to_string()).unwrap_or_default();
                         let default_expr = indexed_part.1.default_expr().map(|expr| expr.syntax().clone());
                     },
                     content = {
                         oninput: move |evt: Event<FormData>| {
-                            let new_name = evt.value().clone();
-                            update_node_value(
-                                indexed_part.1.syntax().clone().into(),
-                                &new_name
-                            );
+                            let snapshot = analysis.read().0.snapshot();
+                            let fpos = ide::FilePos { file_id: analysis.read().1, pos: param_name_node.clone().unwrap().text_range().start()};
+                            let result = snapshot.rename(fpos, evt.value().as_ref());
+                            apply_workspace_edit(result.unwrap().unwrap());
                         },
                         onfocusout: move |_| {
                             focus.set(None);
@@ -166,7 +167,7 @@ pub fn LambdaParameter(
 mod tests {
     use insta::assert_snapshot;
     use super::*;
-    use crate::ast::mock_hooks::use_ast_node_context;
+    use crate::ast::mock_hooks::{use_ast_node_context, use_analysis_host_context};
     use crate::components::expression::mock_components::ExpressionUI_context;
     use serial_test::serial;
 
@@ -174,6 +175,7 @@ mod tests {
     #[serial]
     fn test_lambda_ui() {
         let use_ast_node_ctx = use_ast_node_context();
+        let use_analysis_host_ctx = use_analysis_host_context();
         let expression_ui_ctx = ExpressionUI_context();
         const SOURCE: &str = r#"
         { var1, var2 ? "default" } : {}
@@ -185,6 +187,11 @@ mod tests {
                     let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
                     syntax::ast::Lambda::cast(expr.syntax().clone()).unwrap()
                 })
+            });
+        use_analysis_host_ctx.expect()
+            .returning(|| {
+            let (host, file_id) = ide::AnalysisHost::new_single_file(SOURCE);
+            Signal::new((host, file_id))
             });
         expression_ui_ctx.expect()
             .returning(|props| {

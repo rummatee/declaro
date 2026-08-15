@@ -7,8 +7,6 @@ use mockall_double::double;
 use crate::ast::functions as ast_functions;
 #[double]
 use crate::ast::hooks as ast_hooks;
-#[double]
-use crate::utils::hooks;
 
 #[cfg(test)]
 use mockall::automock;
@@ -26,7 +24,7 @@ pub mod components {
     #[allow(non_snake_case)]
     pub fn RefInput(props: RefInputProps) -> Element {
         let ptr = props.ptr;
-        let analysis = hooks::use_analysis_host();
+        let analysis = ast_hooks::use_analysis_host();
         let node = ast_hooks::use_ast_node::<syntax::ast::Ref>(ptr);
         let selected = node.read().token().unwrap();
 
@@ -63,14 +61,14 @@ mod tests {
     use insta::assert_snapshot;
     use serial_test::serial;
     use super::*;
-    use crate::ast::mock_hooks::use_ast_node_context;
+    use crate::ast::mock_hooks::{use_ast_node_context, use_analysis_host_context};
     use ide::AnalysisHost;
 
     #[test]
     #[serial]
     fn test_ref_input() {
         let use_ast_node_ctx = use_ast_node_context();
-        let use_analysis_host_ctx = crate::utils::mock_hooks::use_analysis_host_context();
+        let use_analysis_host_ctx = use_analysis_host_context();
         let get_bindings_in_scope_ctx = crate::ast::mock_functions::get_bindings_in_scope_context();
         use_ast_node_ctx.expect()
             .returning(|_| {
@@ -104,7 +102,7 @@ mod tests {
     #[serial]
     fn test_ref_input_get_binding_error() {
         let use_ast_node_ctx = use_ast_node_context();
-        let use_analysis_host_ctx = crate::utils::mock_hooks::use_analysis_host_context();
+        let use_analysis_host_ctx = use_analysis_host_context();
         let get_bindings_in_scope_ctx = crate::ast::mock_functions::get_bindings_in_scope_context();
         use_ast_node_ctx.expect()
             .returning(|_| {
