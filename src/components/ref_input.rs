@@ -24,11 +24,10 @@ pub mod components {
     #[allow(non_snake_case)]
     pub fn RefInput(props: RefInputProps) -> Element {
         let ptr = props.ptr;
-        let analysis = ast_hooks::use_analysis_host();
         let node = ast_hooks::use_ast_node::<syntax::ast::Ref>(ptr);
         let selected = node.read().token().unwrap();
 
-        let bindings = ast_functions::get_bindings_in_scope(node.read().syntax(), &analysis.read()).unwrap_or_default();
+        let bindings = ast_functions::get_bindings_in_scope(node.read().syntax()).unwrap_or_default();
         let options = bindings
             .iter()
             .map(|label| {
@@ -68,7 +67,6 @@ mod tests {
     #[serial]
     fn test_ref_input() {
         let use_ast_node_ctx = use_ast_node_context();
-        let use_analysis_host_ctx = use_analysis_host_context();
         let get_bindings_in_scope_ctx = crate::ast::mock_functions::get_bindings_in_scope_context();
         use_ast_node_ctx.expect()
             .returning(|_| {
@@ -78,13 +76,8 @@ mod tests {
                     syntax::ast::Ref::cast(expr.syntax().clone()).unwrap()
                 })
             });
-        use_analysis_host_ctx.expect()
-            .returning(|| {
-            let analysis_host = AnalysisHost::new_single_file("");
-            Signal::new(analysis_host)
-            });
         get_bindings_in_scope_ctx.expect()
-            .returning(|_, _| Ok(vec!["foo".to_string(), "bar".to_string()]));
+            .returning(|_| Ok(vec!["foo".to_string(), "bar".to_string()]));
 
         let mut vdom = VirtualDom::new(|| {
             let syntax_node = syntax::parse_file("foo").syntax_node();
@@ -95,6 +88,8 @@ mod tests {
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);
         assert_snapshot!(html);
+        use_ast_node_ctx.checkpoint();
+        get_bindings_in_scope_ctx.checkpoint();
 
     }
 
@@ -102,7 +97,6 @@ mod tests {
     #[serial]
     fn test_ref_input_get_binding_error() {
         let use_ast_node_ctx = use_ast_node_context();
-        let use_analysis_host_ctx = use_analysis_host_context();
         let get_bindings_in_scope_ctx = crate::ast::mock_functions::get_bindings_in_scope_context();
         use_ast_node_ctx.expect()
             .returning(|_| {
@@ -112,13 +106,8 @@ mod tests {
                 syntax::ast::Ref::cast(expr.syntax().clone()).unwrap()
             })
             });
-        use_analysis_host_ctx.expect()
-            .returning(|| {
-            let analysis_host = AnalysisHost::new_single_file("");
-            Signal::new(analysis_host)
-            });
         get_bindings_in_scope_ctx.expect()
-            .returning(|_, _| Err(crate::ast::BindingsRetrievalError::ExprId));
+            .returning(|_| Err(crate::ast::BindingsRetrievalError::ExprId));
         let mut vdom = VirtualDom::new(|| {
             let syntax_node = syntax::parse_file("foo").syntax_node();
             let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(&syntax_node));
@@ -127,5 +116,7 @@ mod tests {
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);
         assert_snapshot!(html);
+        use_ast_node_ctx.checkpoint();
+        get_bindings_in_scope_ctx.checkpoint();
     }
 }

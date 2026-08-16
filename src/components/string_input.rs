@@ -9,8 +9,9 @@ use crate::ast::functions::update_node_value;
 
 #[double]
 use crate::ast::hooks as ast_hooks;
+
 #[double]
-use crate::utils::hooks;
+use crate::ast::functions as ast_functions;
 
 #[cfg(test)]
 use mockall::automock;
@@ -29,8 +30,7 @@ pub mod components {
     pub fn StringInput(props: StringInputProps) -> Element {
         let ptr = props.ptr;
         let node = ast_hooks::use_ast_node::<syntax::ast::String>(ptr);
-        let analysis = hooks::use_analysis_host();
-        let bindings = crate::ast::functions::get_bindings_in_scope(node.read().syntax(), &analysis.read()).unwrap_or_default();
+        let bindings = ast_functions::get_bindings_in_scope(node.read().syntax()).unwrap_or_default();
         let mut focus = use_signal::<Option<i8>>(|| None);
 
         let string_parts = node.read().string_parts().enumerate();
@@ -117,7 +117,6 @@ pub mod components {
                     },
                     content = {
                         class: "dynamic-fragment",
-                        title: "{bindings.join(\", \")}",
                         {expr_text.to_string()}
                     }
                 }
@@ -141,16 +140,15 @@ pub mod components {
 #[cfg(test)]
 mod tests {
     use crate::ast::mock_hooks::use_ast_node_context;
+    use crate::ast::mock_functions::get_bindings_in_scope_context;
     use serial_test::serial;
     use insta::assert_snapshot;
-    use ide::AnalysisHost;
     use super::*;
 
     #[test]
     #[serial]
     fn test_string_input() {
         let use_ast_node_ctx = use_ast_node_context();
-        let use_analysis_host_ctx = crate::utils::mock_hooks::use_analysis_host_context();
         use_ast_node_ctx.expect()
             .returning(|_| {
             Memo::new(|| {
@@ -159,10 +157,10 @@ mod tests {
                 syntax::ast::Ref::cast(expr.syntax().clone()).unwrap()
             })
             });
-        use_analysis_host_ctx.expect()
-            .returning(|| {
-            let analysis_host = AnalysisHost::new_single_file("");
-            Signal::new(analysis_host)
+        let get_bindings_in_scope_ctx = get_bindings_in_scope_context();
+        get_bindings_in_scope_ctx.expect()
+            .returning(|_| {
+            Ok(vec!["foo".to_string(), "bar".to_string()])
             });
         use_ast_node_ctx.expect()
             .returning(|_| {

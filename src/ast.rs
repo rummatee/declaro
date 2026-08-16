@@ -160,11 +160,12 @@ pub mod functions {
         source.write().insert_str(nodes.last().map(|node| usize::from(node.syntax().text_range().end())).unwrap_or(0), "\nnew_attr = 0;");
     }
 
-    pub fn get_bindings_in_scope(node: &SyntaxNode, analysis: &(AnalysisHost, FileId)) -> Result<Vec<String>, BindingsRetrievalError> {
-        let snapshot = analysis.0.snapshot();
-        let scopes = snapshot.scopes(analysis.1)?;
+    pub fn get_bindings_in_scope(node: &SyntaxNode) -> Result<Vec<String>, BindingsRetrievalError> {
+        let analysis = hooks::use_analysis_host();
+        let snapshot = analysis.read().0.snapshot();
+        let scopes = snapshot.scopes(analysis.read().1)?;
         let expr_id = snapshot
-            .source_map(analysis.1).unwrap()
+            .source_map(analysis.read().1).unwrap()
             .expr_for_node(SyntaxNodePtr::new(node)).ok_or(BindingsRetrievalError::ExprId)?;
         let scope_id = scopes.scope_for_expr(expr_id).ok_or(BindingsRetrievalError::ScopeForExpr)?;
         Ok(scopes
@@ -207,6 +208,7 @@ mod tests {
     use insta::assert_snapshot;
     use std::str::FromStr;
     use serial_test::serial;
+    use rowan::TextRange;
 
     #[test]
     #[serial]
@@ -277,13 +279,66 @@ mod tests {
 
     #[test]
     #[serial]
+    fn test_apply_workspace_edit() {
+        let mut vdom = VirtualDom::new(|| {
+            let code = r#"
+                {
+                    a = 1;
+                    b = "b";
+                }
+            "#;
+            let use_source_ctx = mock_hooks::use_source_context();
+            let source_signal = Signal::new(code.to_string());
+            use_source_ctx.expect().return_const_st(source_signal);
+            let use_analysis_host_ctx = mock_hooks::use_analysis_host_context();
+            let analysis_host = AnalysisHost::new_single_file(code).0;
+            use_analysis_host_ctx.expect().return_const_st(Signal::new((analysis_host, FileId(0))));
+            let file_id = FileId(0);
+            let edit = ide::WorkspaceEdit {
+                content_edits: std::collections::HashMap::from([
+                    (file_id, vec![
+                        ide::TextEdit {
+                            delete: TextRange::new(43.into(), 44.into()),
+                            insert: "12".into(),
+                        },
+                        ide::TextEdit {
+                            delete: TextRange::new(71.into(), 72.into()),
+                            insert: "abc".into(),
+                        },
+                    ]),
+                ]),
+            };
+            functions::apply_workspace_edit(edit);
+            let updated_source = source_signal.read().clone();
+            assert_eq!(updated_source, r#"
+                {
+                    a = 12;
+                    b = "abc";
+                }
+            "#);
+            rsx! { "success" }
+        });
+        vdom.rebuild_in_place();
+        assert!(dioxus_ssr::render(&vdom).contains("success"));
+    }
+
+    #[test]
+    #[serial]
     fn test_get_bindings_in_scope() {
-        let analysis_host = AnalysisHost::new_single_file("let foo = 1; in let bar = 2; in foo + bar").0;
-        let syntax_node = syntax::parse_file("let foo = 1; in let bar = 2; in foo + bar").syntax_node();
-        let path = crate::ast::AstPath{indices: vec![0, 1, 1, 0]}; // Path to the 'foo' reference in 'foo + bar'
-        let expr = crate::ast::functions::resolve_path(&syntax_node, &path).unwrap();
-        let ref_node = syntax::ast::Ref::cast(expr.clone()).unwrap();
-        let bindings = functions::get_bindings_in_scope(ref_node.syntax(), &(analysis_host, FileId(0))).unwrap();
-        assert_eq!(bindings, vec!["bar".to_string(), "foo".to_string()]);
+        let mut vdom = VirtualDom::new(|| {
+            let analysis_host = AnalysisHost::new_single_file("let foo = 1; in let bar = 2; in foo + bar").0;
+            let use_analysis_host_ctx = mock_hooks::use_analysis_host_context();
+            use_analysis_host_ctx.expect().return_const_st(Signal::new((analysis_host, FileId(0))));
+            let syntax_node = syntax::parse_file("let foo = 1; in let bar = 2; in foo + bar").syntax_node();
+            let path = crate::ast::AstPath{indices: vec![0, 1, 1, 0]}; // Path to the 'foo' reference in 'foo + bar'
+            let expr = crate::ast::functions::resolve_path(&syntax_node, &path).unwrap();
+            let ref_node = syntax::ast::Ref::cast(expr.clone()).unwrap();
+            let bindings = functions::get_bindings_in_scope(ref_node.syntax()).unwrap();
+            assert_eq!(bindings, vec!["bar".to_string(), "foo".to_string()]);
+            use_analysis_host_ctx.checkpoint();
+            rsx! { "success" }
+        });
+        vdom.rebuild_in_place();
+        assert!(dioxus_ssr::render(&vdom).contains("success"));
     }
 }
