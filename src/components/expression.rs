@@ -147,13 +147,8 @@ pub mod components {
                             onclick: closure!(move mut menu_open, clone node, |_| {
                                 menu_open.set(false);
                                 update_node_value(
-                                    node.clone(),
-                                    template,
-                                    |syntax| {
-                                        <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                                            .and_then(|sf| sf.expr())
-                                            .map(|expr| expr.syntax().clone())
-                                    }
+                                    node.clone().into(),
+                                    template
                                 );
                             }),
                             "{label}"
@@ -211,13 +206,8 @@ pub mod components {
                 oninput: move |e| {
                     println!("New value: {}", e.value());
                     update_node_value(
-                        node.read().syntax().clone(),
-                        &e.value(),
-                        |syntax| {
-                            <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                                .and_then(|sf| sf.expr())
-                                .map(|expr| expr.syntax().clone())
-                        }
+                        node.read().syntax().clone().into(),
+                        &e.value()
                     );
                 }
             }
@@ -230,7 +220,7 @@ pub mod components {
 mod tests {
     use insta::assert_snapshot;
     use super::*;
-    use crate::ast::mock_hooks::{use_ast_node_context, use_syntax_node_context};
+    use crate::ast::mock_hooks::{use_ast_node_context, use_syntax_node_context, use_analysis_host_context};
     use serial_test::serial;
     use ide::AnalysisHost;
 
@@ -254,7 +244,7 @@ mod tests {
                                 <$ty>::cast(expr.syntax().clone()).unwrap()
                             })
                         });
-                    let use_analysis_host_ctx = crate::utils::mock_hooks::use_analysis_host_context();
+                    let use_analysis_host_ctx = use_analysis_host_context();
                     use_analysis_host_ctx.expect()
                         .returning(|| {
                         let analysis_host = AnalysisHost::new_single_file($source);

@@ -1,10 +1,10 @@
-use syntax::ast::{HasBindings};
+use syntax::ast::HasBindings;
 use syntax::SyntaxNodePtr;
 use syntax::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;
 use focusable_macro::focusable;
-use crate::ast::functions::update_node_value;
+use crate::ast::functions::add_binding;
 use std::iter::zip;
 
 #[double]
@@ -17,7 +17,6 @@ use crate::ast::hooks as ast_hooks;
 pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
     let set = ast_hooks::use_ast_node::<syntax::ast::AttrSet>(ptr);
     let bindings = set.read().bindings();
-    let bindings_clone = bindings.clone();
     let enumerated = bindings.clone().enumerate();
     let focus = use_signal::<Option<i8>>(|| None);
     let labels = focusable!({
@@ -37,34 +36,10 @@ pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Ele
                     class: "attribute-label",
                     value: "{label.trim()}",
                     oninput: move |evt| {
-                        let new_label = evt.value().clone();
-                        let value = attr.value().unwrap();
-                        let new_attribute_set = format!("{{{}}}",enumerated.clone().map(|(i, binding)| {
-                            if i == indexed_part.0 {
-                                format!("{} = {};", new_label, value.syntax().text())
-                            } else {
-                                match binding {
-                                    syntax::ast::Binding::AttrpathValue(attr) => {
-                                        let label = attr.attrpath()
-                                            .map(|ap| ap.syntax().text().to_string())
-                                            .unwrap_or("unknown".to_string());
-                                        let value = attr.value().unwrap();
-                                        format!("{} = {};", label, value.syntax().text())
-                                    },
-                                    _ => "".to_string(),
-                                }
-                            }
-
-                        }).collect::<Vec<_>>().join("\n"));
-                        update_node_value(
-                            set.read().syntax().clone(),
-                            &new_attribute_set,
-                            |syntax| {
-                                <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                                    .and_then(|sf| sf.expr())
-                                    .map(|expr| expr.syntax().clone())
-                            }
-                        );
+                        let new_label = format!("{} ", evt.value().clone());
+                        let range = attr.attrpath().unwrap().syntax().text_range();
+                        let mut source = use_context::<Signal<String>>();
+                        source.write().replace_range(usize::from(range.start())..usize::from(range.end()), &new_label);
                     },
                     onfocusout: move |_| {
                         focus.set(None);
@@ -86,7 +61,7 @@ pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Ele
         }
         ]
     });
-    let elements = zip(labels,bindings).map(|(label, binding)| {
+    let elements = zip(labels,bindings.clone()).map(|(label, binding)| {
         let attr = match binding {
             syntax::ast::Binding::AttrpathValue(attr) => attr,
             _ => return rsx! { div { "Unsupported binding type" } },
@@ -109,28 +84,7 @@ pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Ele
             span { 
                 class: "add-binding",
                 onclick: move |_| {
-                    let new_attribute_set = bindings_clone.clone().map(|binding| {
-                        match binding {
-                            syntax::ast::Binding::AttrpathValue(attr) => {
-                    let label = attr.attrpath()
-                        .map(|ap| ap.syntax().text().to_string())
-                        .unwrap_or("unknown".to_string());
-                    let value = attr.value().unwrap();
-                    format!("{} = {};", label, value.syntax().text())
-                            },
-                            _ => "".to_string(),
-                        }
-                    }).collect::<Vec<_>>().join("\n");
-                    let new_attribute_set_with_new_binding = format!("{{{}\nnew_attr = 0;}}", new_attribute_set);
-                    update_node_value(
-                        set.read().syntax().clone(),
-                        &new_attribute_set_with_new_binding,
-                        |syntax| {
-                            <syntax::ast::SourceFile as AstNode>::cast(syntax.clone())
-                    .and_then(|sf| sf.expr())
-                    .map(|expr| expr.syntax().clone())
-                        }
-                    );
+                    add_binding(bindings.clone());
                 },
                 "+"
             }

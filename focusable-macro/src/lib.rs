@@ -224,8 +224,6 @@ pub fn focusable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         {
             let mut focus = #focus;
             #iterator.clone().filter_map(move |indexed_part| {
-                #[allow(unused_variables)]
-                let #iterator = #iterator.clone();
                 let focused = focus.read().is_some_and(|f| f == indexed_part.0 as i8);
                 let index = indexed_part.0 as i8;
                 match indexed_part.1 {

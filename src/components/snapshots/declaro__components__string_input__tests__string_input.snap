@@ -2,4 +2,4 @@
 source: src/components/string_input.rs
 expression: html
 ---
-<div class="string-input simple-input"><span class="string-fragment">Hello </span><span class="dynamic-fragment" title="">foo</span></div>
+<div class="string-input simple-input"><span class="string-fragment">Hello </span><span class="dynamic-fragment">foo</span></div>

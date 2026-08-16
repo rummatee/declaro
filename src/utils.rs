@@ -18,8 +18,4 @@ pub mod hooks {
 
         value
     }
-
-    pub fn use_analysis_host() -> Signal<(ide::AnalysisHost, ide::FileId)> {
-        use_context::<Signal<(ide::AnalysisHost, ide::FileId)>>()
-    }
 }
