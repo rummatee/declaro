@@ -1,6 +1,5 @@
 use dioxus::prelude::*;
-use syntax::{match_ast};
-use syntax::ast::AstNode;
+use rowan::ast::AstNode;
 use std::fs;
 use std::path::PathBuf;
 use rfd::AsyncFileDialog;
@@ -25,25 +24,10 @@ fn App() -> Element {
         fs::read_to_string(file_path.read().clone()).expect("Could not read file")
     });
     let ast = utils::hooks::use_derivation(move || {
-        syntax::parse_file(contents.read().as_str()).syntax_node()
-    });
-    let analysis_host = utils::hooks::use_derivation(move || {
-        let root = ast.read();
-        println!("AST: {}", root);
-        let sourceFile = match_ast!{
-            match root {
-                syntax::ast::SourceFile(src) => src,
-                _ => panic!("Expected an source file at the root of the file, got {:?}", root.kind()),
-            }
-        };
-        let expr = sourceFile.expr().unwrap();
-        let node = expr.syntax();
-        let serialized = node.to_string();
-        ide::AnalysisHost::new_single_file(&serialized)
+        rnix::Root::parse(contents.read().as_str()).tree().syntax().clone()
     });
     use_context_provider(|| contents);
     use_context_provider(|| ast);
-    use_context_provider(|| analysis_host);
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         document::Stylesheet { href: MAIN_CSS } 
@@ -65,17 +49,7 @@ fn App() -> Element {
             }
             button {
                 onclick: move |_| {
-                    let root = ast.read();
-                    let sourceFile = match_ast!{
-                match root {
-                syntax::ast::SourceFile(src) => src,
-                _ => panic!("Expected an source file at the root of the file, got {:?}", root.kind()),
-                }
-                    };
-                    let expr = sourceFile.expr().unwrap();
-                    let node = expr.syntax();
-                    let serialized = node.to_string();
-                    fs::write(file_path.read().clone(), serialized).expect("Could not write to file");
+                    fs::write(file_path.read().clone(), contents.read().clone()).expect("Could not write to file");
                 },
                 id: "save-file",
                 "Save"

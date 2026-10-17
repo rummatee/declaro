@@ -1,5 +1,5 @@
-use ide::{AnalysisHost, FileId};
-use syntax::{SyntaxNode, SyntaxNodePtr, NixLanguage, ast::AstNode, ast::AstChildren, SyntaxElement};
+use rnix::{SyntaxNode, SyntaxElement, ast::AstNode};
+use rowan::ast::AstChildren;
 use dioxus::prelude::*;
 use mockall_double::double;
 use thiserror::Error;
@@ -20,24 +20,6 @@ pub mod hooks {
         use_context::<Signal<String>>()
     }
 
-    pub fn use_syntax_node() -> Signal<SyntaxNode> {
-        use_context::<Signal<SyntaxNode>>()
-    }
-
-    pub fn use_analysis_host() -> Signal<(AnalysisHost, FileId)> {
-        use_context::<Signal<(AnalysisHost, FileId)>>()
-    }
-
-    pub fn use_ast_node<T>(ptr: ReadSignal<SyntaxNodePtr>) -> Memo<T>
-    where
-        T: AstNode<Language = NixLanguage> + PartialEq + 'static,
-    {
-        let ast = use_syntax_node();
-        use_memo(move || {
-            let syntax = ptr.read().to_node(&ast.read());
-            T::cast(syntax).expect("Failed to cast syntax node to expected type")
-        })
-    }
 }
 
 #[cfg_attr(test, automock)]
@@ -142,46 +124,27 @@ pub mod functions {
         source.write().replace_range(usize::from(range.start())..usize::from(range.end()), new_value);
     }
 
-    pub fn apply_workspace_edit(edit: ide::WorkspaceEdit) {
-        let mut source = hooks::use_source();
-        let file_id = hooks::use_analysis_host().read().1;
-        let mut file_edits = edit.content_edits.get(&file_id).unwrap().clone();
-        file_edits.sort_by(|a, b| b.delete.start().cmp(&a.delete.start()));
-        for text_edit in file_edits {
-            text_edit.apply(&mut source.write());
-        }
-    }
-
     pub fn add_binding<T>(nodes: AstChildren<T>)
     where
-        T: AstNode<Language = NixLanguage> + PartialEq + 'static,
+        T: AstNode + PartialEq + 'static,
     {
         let mut source = hooks::use_source();
         source.write().insert_str(nodes.last().map(|node| usize::from(node.syntax().text_range().end())).unwrap_or(0), "\nnew_attr = 0;");
     }
 
     pub fn get_bindings_in_scope(node: &SyntaxNode) -> Result<Vec<String>, BindingsRetrievalError> {
-        let analysis = hooks::use_analysis_host();
-        let snapshot = analysis.read().0.snapshot();
-        let scopes = snapshot.scopes(analysis.read().1)?;
-        let expr_id = snapshot
-            .source_map(analysis.read().1).unwrap()
-            .expr_for_node(SyntaxNodePtr::new(node)).ok_or(BindingsRetrievalError::ExprId)?;
-        let scope_id = scopes.scope_for_expr(expr_id).ok_or(BindingsRetrievalError::ScopeForExpr)?;
-        Ok(scopes
-            .ancestors(scope_id)
-            .filter_map(|scope| scope.as_definitions())
-            .flatten()
-            .map(|(name, _def)| name.to_string())
-            .collect::<Vec<String>>())
+        /* Not possible with rnix allone.
+         * Maybe I will implement this with Snix, but that implies changing to GPL.
+         * The older implementation with Nil, also required maintaining a clone, as the
+         * functionality was implemented, but not exposed.
+         * For now, just return an empty list */
+        Ok(vec![])
     }
 }
 
 
 #[derive(Error, Debug)]
 pub enum BindingsRetrievalError {
-    #[error("Failed getting scopes")]
-    Scopes(#[from] ide::Cancelled),
     #[error("Failed getting expression id")]
     ExprId,
     #[error("Failed getting scope for expression")]
@@ -208,7 +171,6 @@ mod tests {
     use insta::assert_snapshot;
     use std::str::FromStr;
     use serial_test::serial;
-    use rowan::TextRange;
 
     #[test]
     #[serial]
@@ -221,7 +183,8 @@ mod tests {
                 };
             }
         "#;
-        let ast = syntax::parse_file(code).syntax_node();
+        let root = rnix::Root::parse(code);
+        let ast = root.syntax();
         let path = AstPath::from_str("0.1.0").expect("Failed to parse AstPath");
         let node = functions::resolve_path(&ast, &path).expect("Node should exist");
         assert_snapshot!(node);
@@ -257,7 +220,8 @@ mod tests {
                     b = "b";
                 }
             "#;
-            let ast = syntax::parse_file(code).syntax_node();
+            let root = rnix::Root::parse(code);
+            let ast = root.syntax();
             let use_source_ctx = mock_hooks::use_source_context();
             let source_signal = Signal::new(code.to_string());
             use_source_ctx.expect().return_const_st(source_signal);
@@ -277,68 +241,4 @@ mod tests {
         assert!(dioxus_ssr::render(&vdom).contains("success"));
     }
 
-    #[test]
-    #[serial]
-    fn test_apply_workspace_edit() {
-        let mut vdom = VirtualDom::new(|| {
-            let code = r#"
-                {
-                    a = 1;
-                    b = "b";
-                }
-            "#;
-            let use_source_ctx = mock_hooks::use_source_context();
-            let source_signal = Signal::new(code.to_string());
-            use_source_ctx.expect().return_const_st(source_signal);
-            let use_analysis_host_ctx = mock_hooks::use_analysis_host_context();
-            let analysis_host = AnalysisHost::new_single_file(code).0;
-            use_analysis_host_ctx.expect().return_const_st(Signal::new((analysis_host, FileId(0))));
-            let file_id = FileId(0);
-            let edit = ide::WorkspaceEdit {
-                content_edits: std::collections::HashMap::from([
-                    (file_id, vec![
-                        ide::TextEdit {
-                            delete: TextRange::new(43.into(), 44.into()),
-                            insert: "12".into(),
-                        },
-                        ide::TextEdit {
-                            delete: TextRange::new(71.into(), 72.into()),
-                            insert: "abc".into(),
-                        },
-                    ]),
-                ]),
-            };
-            functions::apply_workspace_edit(edit);
-            let updated_source = source_signal.read().clone();
-            assert_eq!(updated_source, r#"
-                {
-                    a = 12;
-                    b = "abc";
-                }
-            "#);
-            rsx! { "success" }
-        });
-        vdom.rebuild_in_place();
-        assert!(dioxus_ssr::render(&vdom).contains("success"));
-    }
-
-    #[test]
-    #[serial]
-    fn test_get_bindings_in_scope() {
-        let mut vdom = VirtualDom::new(|| {
-            let analysis_host = AnalysisHost::new_single_file("let foo = 1; in let bar = 2; in foo + bar").0;
-            let use_analysis_host_ctx = mock_hooks::use_analysis_host_context();
-            use_analysis_host_ctx.expect().return_const_st(Signal::new((analysis_host, FileId(0))));
-            let syntax_node = syntax::parse_file("let foo = 1; in let bar = 2; in foo + bar").syntax_node();
-            let path = crate::ast::AstPath{indices: vec![0, 1, 1, 0]}; // Path to the 'foo' reference in 'foo + bar'
-            let expr = crate::ast::functions::resolve_path(&syntax_node, &path).unwrap();
-            let ref_node = syntax::ast::Ref::cast(expr.clone()).unwrap();
-            let bindings = functions::get_bindings_in_scope(ref_node.syntax()).unwrap();
-            assert_eq!(bindings, vec!["bar".to_string(), "foo".to_string()]);
-            use_analysis_host_ctx.checkpoint();
-            rsx! { "success" }
-        });
-        vdom.rebuild_in_place();
-        assert!(dioxus_ssr::render(&vdom).contains("success"));
-    }
 }
