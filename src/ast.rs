@@ -1,5 +1,5 @@
-use rnix::{SyntaxNode, SyntaxElement, ast::AstNode};
-use rowan::ast::AstChildren;
+use rnix::{SyntaxNode, SyntaxElement, ast::{LetIn, Pattern}};
+use rowan::ast::{AstChildren, AstNode};
 use dioxus::prelude::*;
 use mockall_double::double;
 use thiserror::Error;
@@ -24,6 +24,8 @@ pub mod hooks {
 
 #[cfg_attr(test, automock)]
 pub mod functions {
+    use rnix::ast::HasEntry;
+
     use super::*;
 
     #[double]
@@ -126,19 +128,39 @@ pub mod functions {
 
     pub fn add_binding<T>(nodes: AstChildren<T>)
     where
-        T: AstNode + PartialEq + 'static,
+        T: rnix::ast::AstNode + PartialEq + 'static,
     {
         let mut source = hooks::use_source();
         source.write().insert_str(nodes.last().map(|node| usize::from(node.syntax().text_range().end())).unwrap_or(0), "\nnew_attr = 0;");
     }
 
     pub fn get_bindings_in_scope(node: &SyntaxNode) -> Result<Vec<String>, BindingsRetrievalError> {
-        /* Not possible with rnix allone.
-         * Maybe I will implement this with Snix, but that implies changing to GPL.
-         * The older implementation with Nil, also required maintaining a clone, as the
-         * functionality was implemented, but not exposed.
-         * For now, just return an empty list */
-        Ok(vec![])
+        let mut result = Vec::new();
+        get_bindings_rec(node, &mut result)?;
+        Ok(result)
+    }
+
+    pub fn get_bindings_rec(node: &SyntaxNode, acc: &mut Vec<String>) -> Result<(), BindingsRetrievalError> {
+        if let Some(let_in) = LetIn::cast(node.clone()) {
+            for entry in let_in.attrpath_values() {
+                if let Some(attrpath) = entry.attrpath() {
+                    acc.push(attrpath.syntax().text().to_string());
+                }
+            }
+        }
+        if let Some(lambda) = rnix::ast::Lambda::cast(node.clone()) {
+            if let Some(rnix::ast::Param::Pattern(pat)) = lambda.param() {
+                for pat in pat.pat_entries() {
+                    if let Some(ident) = pat.ident() {
+                        acc.push(ident.syntax().text().to_string());
+                    }
+                }
+            }
+        }
+        if let Some(parent) = node.parent() {
+            get_bindings_rec(&parent, acc)?;
+        }
+        Ok(())
     }
 }
 
@@ -240,5 +262,19 @@ mod tests {
         vdom.rebuild_in_place();
         assert!(dioxus_ssr::render(&vdom).contains("success"));
     }
+
+    #[test]
+    #[serial]
+    fn test_get_bindings_in_scope() {
+        let code = r#"
+            let x = 1; y = 2; in {z}:{ a = x + y + z; }
+        "#;
+        let root = rnix::Root::parse(code);
+        let ast = root.syntax();
+        let node = functions::resolve_path(&ast, &AstPath::from_str("0.2.1").unwrap()).expect("Node should exist");
+        let bindings = functions::get_bindings_in_scope(&node).expect("Failed to get bindings");
+        assert_eq!(bindings, vec![ "z".to_string(), "x".to_string(), "y".to_string()]);
+    }
+
 
 }
