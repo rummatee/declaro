@@ -1,14 +1,11 @@
 use std::iter::once;
-use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
-use syntax::ast::AstNode;
+use rnix::{SyntaxNode, SyntaxKind, match_ast, ast};
+use rowan::ast::AstNode;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_solid_icons::FaGear;
 use closure::closure;
 use mockall_double::double;
-
-#[double]
-use crate::ast::hooks as ast_hooks;
 
 use crate::ast::functions::{update_node_value, path_from_root};
 
@@ -44,28 +41,27 @@ fn link_or_element(node: &SyntaxNode, nesting_level: u16, element: Element) -> E
 }
 
 fn can_use_non_fallback_ui(node: &SyntaxNode) -> bool {
-    match_ast! {
-        match node {
-        syntax::ast::AttrSet(_) => true,
-        syntax::ast::Lambda(_) => true,
-        syntax::ast::String(_) => true,
-        syntax::ast::Ref(_) => true,
-        syntax::ast::LetIn(_) => true,
+
+    match node.kind() {
+        SyntaxKind::NODE_ATTR_SET => true,
+        SyntaxKind::NODE_LAMBDA => true,
+        SyntaxKind::NODE_STRING => true,
+        SyntaxKind::NODE_IDENT => true,
+        SyntaxKind::NODE_LET_IN => true,
         _ => false,
-        }
     }
 }
 
 #[derive(Props, PartialEq, Clone)]
 pub struct ExpressionUIProps {
-    ptr: ReadSignal<SyntaxNodePtr>,
+    node: ReadSignal<SyntaxNode>,
     nesting_level: u16,
 }
 
 impl std::fmt::Debug for ExpressionUIProps {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ExpressionUIProps")
-            .field("ptr", &self.ptr.read())
+            .field("node", &self.node.read())
             .field("nesting_level", &self.nesting_level)
             .finish()
     }
@@ -78,41 +74,39 @@ pub mod components {
 
     #[allow(non_snake_case)]
     pub fn ExpressionUI(props: ExpressionUIProps) -> Element {
-        let ptr = props.ptr;
         let nesting_level = props.nesting_level;
-        let ast = ast_hooks::use_syntax_node();
         let mut menu_open = use_signal(|| false);
-        let node = ptr.read().to_node(&ast.read());
+        let node = props.clone().node;
         let mut fallback_ui = use_signal(|| {
-            !can_use_non_fallback_ui(&node)
+            !can_use_non_fallback_ui(&node.read())
         });
-        let node_ref = node.clone();
+        let node_ref = node.read().clone();
         let next_level = nesting_level + 1;
         let body = if fallback_ui() {
             rsx! { FallbackExpressionUI { ..props }  }
         } else { match_ast! {
             match node_ref {
-                syntax::ast::AttrSet(_) => {
-                    link_or_element(&node, nesting_level, rsx! {  AttributeSetUI { ptr:ptr, nesting_level: next_level }  })
+                ast::AttrSet(set) => {
+                    link_or_element(&node.read(), nesting_level, rsx! {  AttributeSetUI { set, nesting_level: next_level }  })
                 },
-                syntax::ast::Lambda(_) => {
-                    link_or_element(&node, nesting_level, rsx! { LambdaUI { ptr:ptr, nesting_level: next_level }  })
+                ast::Lambda(lambda) => {
+                    link_or_element(&node.read(), nesting_level, rsx! { LambdaUI { lambda, nesting_level: next_level }  })
                 },
-                syntax::ast::LetIn(_) => {
-                    link_or_element(&node, nesting_level, rsx! { LetInUI { ptr:ptr, nesting_level: next_level }  })
+                ast::LetIn(expression) => {
+                    link_or_element(&node.read(), nesting_level, rsx! { LetInUI { expression, nesting_level: next_level }  })
                 },
-                syntax::ast::String(_) => rsx! { string_input_components::StringInput { ptr:ptr } },
-                syntax::ast::Ref(_) => rsx! { ref_input_components::RefInput { ptr:ptr } },
+                ast::Str(string) => rsx! { string_input_components::StringInput { string } },
+                ast::Ident(ident) => rsx! { ref_input_components::RefInput { ident } },
                 _ => rsx! { FallbackExpressionUI { ..props }  },
             }
         }};
         let extra_classes = match_ast! {
             match node_ref {
-                syntax::ast::AttrSet(_) => if decide_link_or_element(&node, nesting_level) {"atom"} else {"composed"},
-                syntax::ast::Lambda(_) => if decide_link_or_element(&node, nesting_level) {"atom"} else {"composed"},
-                syntax::ast::LetIn(_) => if decide_link_or_element(&node, nesting_level) {"atom"} else {"composed"},
-                syntax::ast::String(_) => "atom",
-                syntax::ast::Ref(_) => "atom",
+                ast::AttrSet(_) => if decide_link_or_element(&node.read(), nesting_level) {"atom"} else {"composed"},
+                ast::Lambda(_) => if decide_link_or_element(&node.read(), nesting_level) {"atom"} else {"composed"},
+                ast::LetIn(_) => if decide_link_or_element(&node.read(), nesting_level) {"atom"} else {"composed"},
+                ast::Str(_) => "atom",
+                ast::Ident(_) => "atom",
                 _ => "atom",
             }
         };
@@ -124,7 +118,7 @@ pub mod components {
             ("Reference", "ref"),
         ];
         let menu_elements: Box<dyn Iterator<Item = Element>> = if fallback_ui() {
-            if can_use_non_fallback_ui(&node) {
+            if can_use_non_fallback_ui(&node.read()) {
                 Box::new(once(rsx! {
                     li {
                         onclick: move |_| {
@@ -147,7 +141,7 @@ pub mod components {
                             onclick: closure!(move mut menu_open, clone node, |_| {
                                 menu_open.set(false);
                                 update_node_value(
-                                    node.clone().into(),
+                                    node.read().clone().into(),
                                     template
                                 );
                             }),
@@ -196,9 +190,8 @@ pub mod components {
 
     #[allow(non_snake_case)]
     pub fn FallbackExpressionUI(props: ExpressionUIProps) -> Element {
-        let ptr = props.ptr;
-        let node = ast_hooks::use_ast_node::<syntax::ast::Expr>(ptr);
-        let value = node.read().syntax().text().to_string();
+        let node = props.node;
+        let value = node.read().text().to_string();
         rsx! {
             textarea {
                 class: "fallback-expression-input simple-input",
@@ -206,7 +199,7 @@ pub mod components {
                 oninput: move |e| {
                     println!("New value: {}", e.value());
                     update_node_value(
-                        node.read().syntax().clone().into(),
+                        node.read().clone().into(),
                         &e.value()
                     );
                 }
@@ -220,9 +213,7 @@ pub mod components {
 mod tests {
     use insta::assert_snapshot;
     use super::*;
-    use crate::ast::mock_hooks::{use_ast_node_context, use_syntax_node_context, use_analysis_host_context};
     use serial_test::serial;
-    use ide::AnalysisHost;
 
     macro_rules! expression_ui_tests {
         ($(($name:ident, $source:expr, $ty:ty)),* $(,)?) => {
@@ -230,26 +221,6 @@ mod tests {
                 #[test]
                 #[serial]
                 fn $name() {
-                    let use_syntax_node_ctx = use_syntax_node_context();
-                    use_syntax_node_ctx.expect()
-                        .returning(|| {
-                            Signal::new(syntax::parse_file($source).syntax_node())
-                        });
-                    let use_ast_node_ctx = use_ast_node_context();
-                    use_ast_node_ctx.expect::<$ty>()
-                        .returning(|_| {
-                            Memo::new(|| {
-                                let syntax_node = syntax::parse_file($source).syntax_node();
-                                let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
-                                <$ty>::cast(expr.syntax().clone()).unwrap()
-                            })
-                        });
-                    let use_analysis_host_ctx = use_analysis_host_context();
-                    use_analysis_host_ctx.expect()
-                        .returning(|| {
-                        let analysis_host = AnalysisHost::new_single_file($source);
-                        Signal::new(analysis_host)
-                        });
                     let expression_ui_ctx = super::mock_components::ExpressionUI_context();
                     expression_ui_ctx.expect()
                         .returning(|props| {
@@ -275,15 +246,12 @@ mod tests {
                         });
 
                     let mut vdom = VirtualDom::new(|| {
-                        let syntax_node = syntax::parse_file($source).syntax_node();
-                        let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
-                        let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(expr.syntax()));
-                        rsx! { components::ExpressionUI { ptr: ptr_signal, nesting_level: 1 } }
+                        let syntax_node = rnix::Root::parse($source).tree();
+                        let expr = syntax_node.expr().unwrap();
+                        rsx! { components::ExpressionUI { node: expr.syntax().clone(), nesting_level: 1 } }
                     });
                     vdom.rebuild_in_place();
                     let html = dioxus_ssr::render(&vdom);
-                    use_ast_node_ctx.checkpoint();
-                    use_syntax_node_ctx.checkpoint();
                     expression_ui_ctx.checkpoint();
                     ref_input_ctx.checkpoint();
                     string_input_ctx.checkpoint();
@@ -294,32 +262,22 @@ mod tests {
     }
 
     expression_ui_tests! {
-        (test_expression_ui_attrset, "{ a = 1; b = 2; }", syntax::ast::AttrSet),
-        (test_expression_ui_lambda, "{ var1, var2 ? \"default\" } : {}", syntax::ast::Lambda),
-        (test_expression_ui_let_in, "let a = 1 in {}", syntax::ast::LetIn),
-        (test_expression_ui_reference, "foo", syntax::ast::Ref),
-        (test_expression_ui_string, "\"a string\"", syntax::ast::String),
+        (test_expression_ui_attrset, "{ a = 1; b = 2; }", ast::AttrSet),
+        (test_expression_ui_lambda, "{ var1, var2 ? \"default\" } : {}", ast::Lambda),
+        (test_expression_ui_let_in, "let a = 1 in {}", ast::LetIn),
+        (test_expression_ui_reference, "foo", ast::Ident),
+        (test_expression_ui_string, "\"a string\"", ast::Str),
     }
 
     #[test]
     #[serial]
     fn test_fallback_expression_ui() {
-        let use_ast_node_ctx = use_ast_node_context();
         const SOURCE: &str = r#"
         { var1, var2 ? "default" } : {}
         "#;
-        use_ast_node_ctx.expect()
-            .returning(|_| {
-                Memo::new(|| {
-                    let syntax_node = syntax::parse_file(SOURCE).syntax_node();
-                    let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
-                    syntax::ast::Expr::cast(expr.syntax().clone()).unwrap()
-                })
-            });
         let mut vdom = VirtualDom::new(|| {
-            let syntax_node = syntax::parse_file(SOURCE).syntax_node();
-            let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(&syntax_node));
-             rsx! { components::FallbackExpressionUI { ptr: ptr_signal, nesting_level: 1 } }
+            let root = rnix::Root::parse(SOURCE).tree();
+             rsx! { components::FallbackExpressionUI { node: root.expr().unwrap().syntax().clone(), nesting_level: 1 } }
         });
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);

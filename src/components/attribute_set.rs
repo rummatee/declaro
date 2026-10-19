@@ -1,6 +1,6 @@
-use syntax::ast::HasBindings;
-use syntax::SyntaxNodePtr;
-use syntax::ast::AstNode;
+use rnix::ast::HasEntry;
+use rnix::ast::{AttrSet, Entry};
+use rowan::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;
 use focusable_macro::focusable;
@@ -10,13 +10,9 @@ use std::iter::zip;
 #[double]
 use crate::components::expression::components as expression_components;
 
-#[double]
-use crate::ast::hooks as ast_hooks;
-
 #[component]
-pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Element {
-    let set = ast_hooks::use_ast_node::<syntax::ast::AttrSet>(ptr);
-    let bindings = set.read().bindings();
+pub fn AttributeSetUI(set: ReadSignal<AttrSet>, nesting_level: u16) -> Element {
+    let bindings = set.read().entries();
     let enumerated = bindings.clone().enumerate();
     let focus = use_signal::<Option<i8>>(|| None);
     let labels = focusable!({
@@ -24,7 +20,7 @@ pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Ele
         focus = focus,
         arms = [
         {
-            matcher = syntax::ast::Binding::AttrpathValue(attr),
+            matcher = Entry::AttrpathValue(attr),
             focused = {
                 element_type = input,
                 preparation = {
@@ -63,17 +59,16 @@ pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Ele
     });
     let elements = zip(labels,bindings.clone()).map(|(label, binding)| {
         let attr = match binding {
-            syntax::ast::Binding::AttrpathValue(attr) => attr,
+            Entry::AttrpathValue(attr) => attr,
             _ => return rsx! { div { "Unsupported binding type" } },
         };
         let value = attr.value().unwrap();
         let node = value.syntax();
-        let ptr = SyntaxNodePtr::new(node);
         rsx! {
             div {
                 class: "attribute-item",
                 {label}
-                expression_components::ExpressionUI { ptr: ptr, nesting_level: nesting_level }
+                expression_components::ExpressionUI { node: node.clone(), nesting_level: nesting_level }
             }
         }
     });
@@ -96,14 +91,12 @@ pub fn AttributeSetUI(ptr: ReadSignal<SyntaxNodePtr>, nesting_level: u16) -> Ele
 mod tests {
     use insta::assert_snapshot;
     use super::*;
-    use crate::ast::mock_hooks::use_ast_node_context;
     use crate::components::expression::mock_components::ExpressionUI_context;
     use serial_test::serial;
 
     #[test]
     #[serial]
     fn test_attribute_set_ui() {
-        let use_ast_node_ctx = use_ast_node_context();
         let expression_ui_ctx = ExpressionUI_context();
         const SOURCE: &str = r#"
         {
@@ -111,26 +104,17 @@ mod tests {
             b = 2;
         }
         "#;
-        use_ast_node_ctx.expect()
-            .returning(|_| {
-                Memo::new(|| {
-                    let syntax_node = syntax::parse_file(SOURCE).syntax_node();
-                    let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
-                    syntax::ast::AttrSet::cast(expr.syntax().clone()).unwrap()
-                })
-            });
         expression_ui_ctx.expect()
             .returning(|props| {
                 rsx! { div { "ExpressionUI for props: {props:?}" } }
             });
         let mut vdom = VirtualDom::new(|| {
-            let syntax_node = syntax::parse_file(SOURCE).syntax_node();
-            let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(&syntax_node));
-            rsx! { AttributeSetUI { ptr: ptr_signal, nesting_level: 1 } }
+            let root = rnix::Root::parse(SOURCE);
+            let set = AttrSet::cast(root.tree().expr().unwrap().syntax().clone()).unwrap();
+            rsx! { AttributeSetUI { set, nesting_level: 1 } }
         });
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);
-        use_ast_node_ctx.checkpoint();
         expression_ui_ctx.checkpoint();
         assert_snapshot!(html);
     }

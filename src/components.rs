@@ -5,8 +5,8 @@ pub mod lambda;
 pub mod let_in;
 pub mod expression;
 use dioxus::prelude::*;
-use syntax::{match_ast, SyntaxNode, SyntaxNodePtr};
-use syntax::ast::AstNode;
+use rnix::{SyntaxNode, match_ast, ast};
+use rowan::ast::AstNode;
 use crate::router::Route;
 
 use expression::components::ExpressionUI;
@@ -17,29 +17,28 @@ use crate::ast::AstPath;
 #[component]
 pub fn NodeUI(path: ReadSignal<AstPath>) -> Element {
     let ast = use_context::<Signal<SyntaxNode>>();
-    let ptr = use_memo(move || {
+    let node = use_memo(move || {
         let node = resolve_path(&ast.read(), &path.read()).unwrap();
         println!("NodeUI rendering node: {}", node);
-        SyntaxNodePtr::new(&node)
+        node
     });
     let level: u16 = 0;
     rsx! {
         Nav { path: path() }
-        ExpressionUI { ptr: ptr, nesting_level: level }
+        ExpressionUI { node: node, nesting_level: level }
     }
 }
 
 
 #[component]
 pub fn Nav(path: AstPath) -> Element {
-    let ast = use_context::<Signal<SyntaxNode>>();
-    let nodes = collect_path(ast.read().clone(), &path);
-    println!("Nav nodes: {:?}", nodes.iter().map(|n| n.node.kind().to_string()).collect::<Vec<String>>());
+    let leaf = use_context::<Signal<SyntaxNode>>();
+    let nodes = collect_path(leaf.read().clone(), &path);
     let elements = nodes.iter().filter_map(|index_node|{
         let node = &index_node.node;
         match_ast! {
             match node {
-                syntax::ast::AttrpathValue(attr) => {
+                ast::AttrpathValue(attr) => {
                     let mut index = index_node.index.clone();
                     index.indices.push(1); // The second child of an AttrpathValue is the value,
                                         // which is what we want to link to.
@@ -48,7 +47,7 @@ pub fn Nav(path: AstPath) -> Element {
                         .unwrap_or("unknown".to_string());
                     Some((label,index))
                 },
-                syntax::ast::SourceFile(_sf) => {
+                ast::Root(_sf) => {
                     let index = index_node.index.clone();
                     let label = "root".to_string();
                     Some((label,index))

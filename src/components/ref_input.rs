@@ -1,19 +1,17 @@
-use syntax::SyntaxNodePtr;
-use syntax::ast::AstNode;
+use rnix::ast::Ident;
+use rowan::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;
 
 #[double]
 use crate::ast::functions as ast_functions;
-#[double]
-use crate::ast::hooks as ast_hooks;
 
 #[cfg(test)]
 use mockall::automock;
 
 #[derive(Props, PartialEq, Clone)]
 pub struct RefInputProps {
-    ptr: ReadSignal<SyntaxNodePtr>,
+    ident: ReadSignal<Ident>,
 }
 
 #[cfg_attr(test, automock)]
@@ -23,11 +21,10 @@ pub mod components {
 
     #[allow(non_snake_case)]
     pub fn RefInput(props: RefInputProps) -> Element {
-        let ptr = props.ptr;
-        let node = ast_hooks::use_ast_node::<syntax::ast::Ref>(ptr);
-        let selected = node.read().token().unwrap();
+        let ident = props.ident;
+        let selected = ident.read().ident_token().expect("Expected an Ident token");
 
-        let bindings = ast_functions::get_bindings_in_scope(node.read().syntax()).unwrap_or_default();
+        let bindings = ast_functions::get_bindings_in_scope(ident.read().syntax()).unwrap_or_default();
         let options = bindings
             .iter()
             .map(|label| {
@@ -45,7 +42,7 @@ pub mod components {
                 onchange: move |e| {
 
                     ast_functions::update_node_value(
-                        node.read().syntax().clone().into(),
+                        ident.read().syntax().clone().into(),
                         &e.value()
                     );
                 },
@@ -60,35 +57,23 @@ mod tests {
     use insta::assert_snapshot;
     use serial_test::serial;
     use super::*;
-    use crate::ast::mock_hooks::{use_ast_node_context, use_analysis_host_context};
-    use ide::AnalysisHost;
 
     #[test]
     #[serial]
     fn test_ref_input() {
-        let use_ast_node_ctx = use_ast_node_context();
         let get_bindings_in_scope_ctx = crate::ast::mock_functions::get_bindings_in_scope_context();
-        use_ast_node_ctx.expect()
-            .returning(|_| {
-                Memo::new(|| {
-                    let syntax_node = syntax::parse_file("foo").syntax_node();
-                    let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
-                    syntax::ast::Ref::cast(expr.syntax().clone()).unwrap()
-                })
-            });
         get_bindings_in_scope_ctx.expect()
             .returning(|_| Ok(vec!["foo".to_string(), "bar".to_string()]));
 
         let mut vdom = VirtualDom::new(|| {
-            let syntax_node = syntax::parse_file("foo").syntax_node();
-            let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(&syntax_node));
+            let root = rnix::Root::parse("foo");
+            let ident = Ident::cast(root.tree().expr().unwrap().syntax().clone()).unwrap();
 
-             rsx! { components::RefInput { ptr: ptr_signal } }
+             rsx! { components::RefInput { ident } }
         });
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);
         assert_snapshot!(html);
-        use_ast_node_ctx.checkpoint();
         get_bindings_in_scope_ctx.checkpoint();
 
     }
@@ -96,27 +81,17 @@ mod tests {
     #[test]
     #[serial]
     fn test_ref_input_get_binding_error() {
-        let use_ast_node_ctx = use_ast_node_context();
         let get_bindings_in_scope_ctx = crate::ast::mock_functions::get_bindings_in_scope_context();
-        use_ast_node_ctx.expect()
-            .returning(|_| {
-            Memo::new(|| {
-                let syntax_node = syntax::parse_file("foo").syntax_node();
-                let expr = syntax::ast::SourceFile::cast(syntax_node).unwrap().expr().unwrap();
-                syntax::ast::Ref::cast(expr.syntax().clone()).unwrap()
-            })
-            });
         get_bindings_in_scope_ctx.expect()
             .returning(|_| Err(crate::ast::BindingsRetrievalError::ExprId));
         let mut vdom = VirtualDom::new(|| {
-            let syntax_node = syntax::parse_file("foo").syntax_node();
-            let ptr_signal = Signal::new(syntax::SyntaxNodePtr::new(&syntax_node));
-             rsx! { components::RefInput { ptr: ptr_signal } }
+            let root = rnix::Root::parse("foo");
+            let ident = Ident::cast(root.tree().expr().unwrap().syntax().clone()).unwrap();
+             rsx! { components::RefInput { ident } }
         });
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);
         assert_snapshot!(html);
-        use_ast_node_ctx.checkpoint();
         get_bindings_in_scope_ctx.checkpoint();
     }
 }
