@@ -1,0 +1,5 @@
+---
+source: src/components/path_input.rs
+expression: html
+---
+<div class="path-input simple-input">./example.nix</div>

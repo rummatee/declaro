@@ -23,6 +23,7 @@ mockall_double = "0.3.1"
 thiserror = "2.0.18"
 focusable-macro = { path = "focusable-macro" }
 rnix = "0.14.0"
+homedir = "0.3.6"
 
 [features]
 default = ["desktop"]

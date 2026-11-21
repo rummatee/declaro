@@ -1,9 +1,13 @@
 pub mod attribute_set;
 pub mod string_input;
+pub mod integer_input;
 pub mod ref_input;
 pub mod lambda;
 pub mod let_in;
+pub mod list;
+pub mod path_input;
 pub mod expression;
+pub mod new_expression_modal;
 use dioxus::prelude::*;
 use rnix::{SyntaxNode, match_ast, ast};
 use rowan::ast::AstNode;

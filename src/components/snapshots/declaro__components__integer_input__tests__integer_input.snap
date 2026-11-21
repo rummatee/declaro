@@ -1,0 +1,5 @@
+---
+source: src/components/integer_input.rs
+expression: html
+---
+<input class="integer-input simple-input" value="123" type="number"/>

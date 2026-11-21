@@ -1,5 +1,6 @@
 use rnix::{SyntaxNode, SyntaxElement, ast::{LetIn, Pattern}};
 use rowan::ast::{AstChildren, AstNode};
+use std::path::PathBuf;
 use dioxus::prelude::*;
 use mockall_double::double;
 use thiserror::Error;
@@ -18,6 +19,10 @@ pub mod hooks {
 
     pub fn use_source() -> Signal<String> {
         use_context::<Signal<String>>()
+    }
+
+    pub fn use_path() -> Signal<PathBuf> {
+        use_context::<Signal<PathBuf>>()
     }
 
 }
@@ -162,6 +167,15 @@ pub mod functions {
         }
         Ok(())
     }
+
+    pub fn is_valid_expression(string: &str) -> bool {
+        let root = rnix::Root::parse(string);
+        if !root.errors().is_empty() {
+            return false;
+        }
+        let ast = root.tree();
+        ast.expr().is_some()
+    }
 }
 
 
@@ -276,5 +290,11 @@ mod tests {
         assert_eq!(bindings, vec![ "z".to_string(), "x".to_string(), "y".to_string()]);
     }
 
+    #[test]
+    #[serial]
+    fn test_is_valid_expression() {
+        assert!(functions::is_valid_expression("1 + 2"));
+        assert!(!functions::is_valid_expression("1 + "));
+    }
 
 }
