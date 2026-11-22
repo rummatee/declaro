@@ -1,9 +1,8 @@
-use rnix::{SyntaxNode, SyntaxElement, ast::{LetIn, Pattern}};
+use rnix::{SyntaxNode, SyntaxElement, ast::LetIn};
 use rowan::ast::{AstChildren, AstNode};
 use std::path::PathBuf;
 use dioxus::prelude::*;
 use mockall_double::double;
-use thiserror::Error;
 
 #[cfg(test)]
 use mockall::automock;
@@ -139,13 +138,13 @@ pub mod functions {
         source.write().insert_str(nodes.last().map(|node| usize::from(node.syntax().text_range().end())).unwrap_or(0), "\nnew_attr = 0;");
     }
 
-    pub fn get_bindings_in_scope(node: &SyntaxNode) -> Result<Vec<String>, BindingsRetrievalError> {
+    pub fn get_bindings_in_scope(node: &SyntaxNode) -> Vec<String> {
         let mut result = Vec::new();
-        get_bindings_rec(node, &mut result)?;
-        Ok(result)
+        get_bindings_rec(node, &mut result);
+        result
     }
 
-    pub fn get_bindings_rec(node: &SyntaxNode, acc: &mut Vec<String>) -> Result<(), BindingsRetrievalError> {
+    pub fn get_bindings_rec(node: &SyntaxNode, acc: &mut Vec<String>) -> () {
         if let Some(let_in) = LetIn::cast(node.clone()) {
             for entry in let_in.attrpath_values() {
                 if let Some(attrpath) = entry.attrpath() {
@@ -163,9 +162,8 @@ pub mod functions {
             }
         }
         if let Some(parent) = node.parent() {
-            get_bindings_rec(&parent, acc)?;
+            get_bindings_rec(&parent, acc);
         }
-        Ok(())
     }
 
     pub fn is_valid_expression(string: &str) -> bool {
@@ -178,14 +176,6 @@ pub mod functions {
     }
 }
 
-
-#[derive(Error, Debug)]
-pub enum BindingsRetrievalError {
-    #[error("Failed getting expression id")]
-    ExprId,
-    #[error("Failed getting scope for expression")]
-    ScopeForExpr,
-}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseAstPathError;
@@ -286,7 +276,7 @@ mod tests {
         let root = rnix::Root::parse(code);
         let ast = root.syntax();
         let node = functions::resolve_path(&ast, &AstPath::from_str("0.2.1").unwrap()).expect("Node should exist");
-        let bindings = functions::get_bindings_in_scope(&node).expect("Failed to get bindings");
+        let bindings = functions::get_bindings_in_scope(&node);
         assert_eq!(bindings, vec![ "z".to_string(), "x".to_string(), "y".to_string()]);
     }
 

@@ -1,4 +1,4 @@
-use rnix::ast::{Str, StrContent, InterpolPart, AstToken};
+use rnix::ast::{Str, InterpolPart, AstToken};
 use rowan::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;
@@ -25,7 +25,7 @@ pub mod components {
     #[allow(non_snake_case)]
     pub fn StringInput(props: StringInputProps) -> Element {
         let string = props.string;
-        let bindings = ast_functions::get_bindings_in_scope(string.read().syntax()).unwrap_or_default();
+        let bindings = ast_functions::get_bindings_in_scope(string.read().syntax());
         let mut focus = use_signal::<Option<i8>>(|| None);
 
         let string_parts = string.read().parts().enumerate();

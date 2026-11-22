@@ -1,4 +1,4 @@
-use rnix::{SyntaxNode, ast::{List}};
+use rnix::ast::List;
 use rowan::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;

@@ -30,7 +30,7 @@ pub mod components {
             return components::BoolInput(RefInputProps { ident });
         }
 
-        let bindings = ast_functions::get_bindings_in_scope(ident.read().syntax()).unwrap_or_default();
+        let bindings = ast_functions::get_bindings_in_scope(ident.read().syntax());
         let options = bindings
             .iter()
             .map(|label| {
@@ -90,7 +90,7 @@ mod tests {
     fn test_ref_input() {
         let get_bindings_in_scope_ctx = crate::ast::mock_functions::get_bindings_in_scope_context();
         get_bindings_in_scope_ctx.expect()
-            .returning(|_| Ok(vec!["foo".to_string(), "bar".to_string()]));
+            .returning(|_| vec!["foo".to_string(), "bar".to_string()]);
 
         let mut vdom = VirtualDom::new(|| {
             let root = rnix::Root::parse("foo");
@@ -103,23 +103,6 @@ mod tests {
         assert_snapshot!(html);
         get_bindings_in_scope_ctx.checkpoint();
 
-    }
-
-    #[test]
-    #[serial]
-    fn test_ref_input_get_binding_error() {
-        let get_bindings_in_scope_ctx = crate::ast::mock_functions::get_bindings_in_scope_context();
-        get_bindings_in_scope_ctx.expect()
-            .returning(|_| Err(crate::ast::BindingsRetrievalError::ExprId));
-        let mut vdom = VirtualDom::new(|| {
-            let root = rnix::Root::parse("foo");
-            let ident = Ident::cast(root.tree().expr().unwrap().syntax().clone()).unwrap();
-             rsx! { components::RefInput { ident } }
-        });
-        vdom.rebuild_in_place();
-        let html = dioxus_ssr::render(&vdom);
-        assert_snapshot!(html);
-        get_bindings_in_scope_ctx.checkpoint();
     }
 
     #[test]

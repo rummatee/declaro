@@ -1,4 +1,4 @@
-use rnix::ast::{Path, PathAbs, PathRel, PathHome};
+use rnix::ast::Path;
 use rowan::ast::AstNode;
 use dioxus::prelude::*;
 use mockall_double::double;
@@ -6,9 +6,6 @@ use crate::ast::functions::update_node_value;
 use rfd::AsyncFileDialog;
 use std::path::{Path as StdPath, PathBuf};
 use homedir::my_home;
-
-#[double]
-use crate::components::expression::components as expression_components;
 
 #[double]
 use crate::ast::hooks as ast_hooks;
