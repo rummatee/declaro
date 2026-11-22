@@ -1,6 +1,6 @@
 pub mod attribute_set;
 pub mod string_input;
-pub mod integer_input;
+pub mod number_input;
 pub mod ref_input;
 pub mod lambda;
 pub mod let_in;

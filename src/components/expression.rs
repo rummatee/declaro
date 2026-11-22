@@ -4,7 +4,6 @@ use rowan::ast::{AstNode};
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_solid_icons::FaGear;
-use closure::closure;
 use mockall_double::double;
 
 use crate::ast::functions::{update_node_value, path_from_root};
@@ -12,7 +11,7 @@ use crate::ast::functions::{update_node_value, path_from_root};
 use crate::components::attribute_set::AttributeSetUI;
 use crate::components::lambda::LambdaUI;
 use crate::components::let_in::LetInUI;
-use crate::components::integer_input::IntegerInput;
+use crate::components::number_input::{Number, NumberInput};
 use crate::components::list::ListUI;
 use crate::components::path_input::PathInput;
 use crate::components::new_expression_modal::NewExpressionModal;
@@ -114,7 +113,8 @@ pub mod components {
                 ast::Path(path) => rsx! { PathInput { path } },
                 ast::Literal(literal) => {
                     match literal.kind() {
-                        ast::LiteralKind::Integer(integer) => rsx! { IntegerInput { integer } },
+                        ast::LiteralKind::Integer(integer) => { let number = Number::Integer(integer); rsx! { NumberInput { number } } },
+                        ast::LiteralKind::Float(float) => { let number = Number::Float(float); rsx! { NumberInput { number } } },
                         _ => rsx! { FallbackExpressionUI { ..props.clone() }  },
                     }
                 },
