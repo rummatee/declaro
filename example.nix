@@ -17,4 +17,5 @@
   list = ["item1" "item2" "item3"];
   arithmetic = 1 + 3;
   path = ./Documents/someFile;
+  boolean = true;
 }
