@@ -1,0 +1,5 @@
+---
+source: src/components/list.rs
+expression: html
+---
+<div class="list-container"><div class="list-item"><div>ExpressionUI for props: ExpressionUIProps { node: NODE_LITERAL@11..12, nesting_level: 2 }</div><span class="list-item-remove">x</span></div><div class="list-item"><div>ExpressionUI for props: ExpressionUIProps { node: NODE_STRING@13..21, nesting_level: 2 }</div><span class="list-item-remove">x</span></div><div class="list-item"><div>ExpressionUI for props: ExpressionUIProps { node: NODE_IDENT@22..26, nesting_level: 2 }</div><span class="list-item-remove">x</span></div><span class="list-item-add">+</span></div>

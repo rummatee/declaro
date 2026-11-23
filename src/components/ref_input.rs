@@ -24,7 +24,13 @@ pub mod components {
         let ident = props.ident;
         let selected = ident.read().ident_token().expect("Expected an Ident token");
 
-        let bindings = ast_functions::get_bindings_in_scope(ident.read().syntax()).unwrap_or_default();
+        // booleans are just identifiers with a predefined value in Nix
+        // See https://github.com/NixOS/rnix-parser/issues/81
+        if selected.text() == "true" || selected.text() == "false" {
+            return components::BoolInput(RefInputProps { ident });
+        }
+
+        let bindings = ast_functions::get_bindings_in_scope(ident.read().syntax());
         let options = bindings
             .iter()
             .map(|label| {
@@ -50,6 +56,27 @@ pub mod components {
             }
         }
     }
+
+    #[allow(non_snake_case)]
+    pub fn BoolInput(props: RefInputProps) -> Element {
+        let ident = props.ident;
+        let selected = ident.read().ident_token().expect("Expected an Ident token").text() == "true";
+        rsx! {
+            input {
+            class: "bool-input simple-input",
+            type: "checkbox",
+            checked: "{selected}",
+            onchange: move |e| {
+                let new_value = if e.value() == "on" { "true" } else { "false" };
+                ast_functions::update_node_value(
+                    ident.read().syntax().clone().into(),
+                    new_value
+                );
+            }
+            }
+        }
+    }
+
 }
 
 #[cfg(test)]
@@ -63,7 +90,7 @@ mod tests {
     fn test_ref_input() {
         let get_bindings_in_scope_ctx = crate::ast::mock_functions::get_bindings_in_scope_context();
         get_bindings_in_scope_ctx.expect()
-            .returning(|_| Ok(vec!["foo".to_string(), "bar".to_string()]));
+            .returning(|_| vec!["foo".to_string(), "bar".to_string()]);
 
         let mut vdom = VirtualDom::new(|| {
             let root = rnix::Root::parse("foo");
@@ -80,18 +107,14 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_ref_input_get_binding_error() {
-        let get_bindings_in_scope_ctx = crate::ast::mock_functions::get_bindings_in_scope_context();
-        get_bindings_in_scope_ctx.expect()
-            .returning(|_| Err(crate::ast::BindingsRetrievalError::ExprId));
+    fn test_bool_input() {
         let mut vdom = VirtualDom::new(|| {
-            let root = rnix::Root::parse("foo");
+            let root = rnix::Root::parse("true");
             let ident = Ident::cast(root.tree().expr().unwrap().syntax().clone()).unwrap();
              rsx! { components::RefInput { ident } }
         });
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);
         assert_snapshot!(html);
-        get_bindings_in_scope_ctx.checkpoint();
     }
 }

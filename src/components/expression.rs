@@ -1,10 +1,9 @@
 use std::iter::once;
 use rnix::{SyntaxNode, SyntaxKind, match_ast, ast};
-use rowan::ast::AstNode;
+use rowan::ast::{AstNode};
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_solid_icons::FaGear;
-use closure::closure;
 use mockall_double::double;
 
 use crate::ast::functions::{update_node_value, path_from_root};
@@ -12,6 +11,10 @@ use crate::ast::functions::{update_node_value, path_from_root};
 use crate::components::attribute_set::AttributeSetUI;
 use crate::components::lambda::LambdaUI;
 use crate::components::let_in::LetInUI;
+use crate::components::number_input::{Number, NumberInput};
+use crate::components::list::ListUI;
+use crate::components::path_input::PathInput;
+use crate::components::new_expression_modal::NewExpressionModal;
 
 #[double]
 use crate::components::ref_input::components as ref_input_components;
@@ -46,9 +49,17 @@ fn can_use_non_fallback_ui(node: &SyntaxNode) -> bool {
         SyntaxKind::NODE_ATTR_SET => true,
         SyntaxKind::NODE_LAMBDA => true,
         SyntaxKind::NODE_STRING => true,
+        SyntaxKind::TOKEN_INTEGER => true,
         SyntaxKind::NODE_IDENT => true,
         SyntaxKind::NODE_LET_IN => true,
-        _ => false,
+        SyntaxKind::NODE_LITERAL => true,
+        SyntaxKind::NODE_LIST => true,
+        SyntaxKind::NODE_PATH_ABS => true,
+        SyntaxKind::NODE_PATH_REL => true,
+        _ => {
+            println!("Fallback UI for node kind: {:?}", node.kind());
+            false
+                    }
     }
 }
 
@@ -56,6 +67,7 @@ fn can_use_non_fallback_ui(node: &SyntaxNode) -> bool {
 pub struct ExpressionUIProps {
     node: ReadSignal<SyntaxNode>,
     nesting_level: u16,
+    type_changeble: Option<bool>,
 }
 
 impl std::fmt::Debug for ExpressionUIProps {
@@ -76,6 +88,7 @@ pub mod components {
     pub fn ExpressionUI(props: ExpressionUIProps) -> Element {
         let nesting_level = props.nesting_level;
         let mut menu_open = use_signal(|| false);
+        let mut modal_open = use_signal(|| false);
         let node = props.clone().node;
         let mut fallback_ui = use_signal(|| {
             !can_use_non_fallback_ui(&node.read())
@@ -83,12 +96,13 @@ pub mod components {
         let node_ref = node.read().clone();
         let next_level = nesting_level + 1;
         let body = if fallback_ui() {
-            rsx! { FallbackExpressionUI { ..props }  }
+            rsx! { FallbackExpressionUI { ..props.clone() }  }
         } else { match_ast! {
             match node_ref {
                 ast::AttrSet(set) => {
                     link_or_element(&node.read(), nesting_level, rsx! {  AttributeSetUI { set, nesting_level: next_level }  })
                 },
+                ast::List(list) => rsx! { ListUI { list, nesting_level: next_level } },
                 ast::Lambda(lambda) => {
                     link_or_element(&node.read(), nesting_level, rsx! { LambdaUI { lambda, nesting_level: next_level }  })
                 },
@@ -96,8 +110,16 @@ pub mod components {
                     link_or_element(&node.read(), nesting_level, rsx! { LetInUI { expression, nesting_level: next_level }  })
                 },
                 ast::Str(string) => rsx! { string_input_components::StringInput { string } },
+                ast::Path(path) => rsx! { PathInput { path } },
+                ast::Literal(literal) => {
+                    match literal.kind() {
+                        ast::LiteralKind::Integer(integer) => { let number = Number::Integer(integer); rsx! { NumberInput { number } } },
+                        ast::LiteralKind::Float(float) => { let number = Number::Float(float); rsx! { NumberInput { number } } },
+                        _ => rsx! { FallbackExpressionUI { ..props.clone() }  },
+                    }
+                },
                 ast::Ident(ident) => rsx! { ref_input_components::RefInput { ident } },
-                _ => rsx! { FallbackExpressionUI { ..props }  },
+                _ => rsx! { FallbackExpressionUI { ..props.clone() }  },
             }
         }};
         let extra_classes = match_ast! {
@@ -105,19 +127,15 @@ pub mod components {
                 ast::AttrSet(_) => if decide_link_or_element(&node.read(), nesting_level) {"atom"} else {"composed"},
                 ast::Lambda(_) => if decide_link_or_element(&node.read(), nesting_level) {"atom"} else {"composed"},
                 ast::LetIn(_) => if decide_link_or_element(&node.read(), nesting_level) {"atom"} else {"composed"},
+                ast::List(_) => "atom",
                 ast::Str(_) => "atom",
                 ast::Ident(_) => "atom",
+                ast::Literal(_) => "atom",
                 _ => "atom",
             }
         };
-        let menu_items = vec![
-            ("Attribute Set", "{}") ,
-            ("Lambda", "{}:{}"),
-            ("Let In", "let a = 1; in {}"),
-            ("String", "\"\""),
-            ("Reference", "ref"),
-        ];
-        let menu_elements: Box<dyn Iterator<Item = Element>> = if fallback_ui() {
+        let menu_elements: Box<dyn Iterator<Item = Element>> = if !props.type_changeble.unwrap_or(true) { Box::new(std::iter::empty()) }
+            else if fallback_ui() {
             if can_use_non_fallback_ui(&node.read()) {
                 Box::new(once(rsx! {
                     li {
@@ -132,33 +150,25 @@ pub mod components {
                 Box::new(std::iter::empty())
             }
         } else {
-            Box::new(
-                menu_items
-                .into_iter()
-                .map(|(label, template)| {
-                    rsx! {
-                        li { 
-                            onclick: closure!(move mut menu_open, clone node, |_| {
-                                menu_open.set(false);
-                                update_node_value(
-                                    node.read().clone().into(),
-                                    template
-                                );
-                            }),
-                            "{label}"
-                        }
-                    }
-                })
-            .chain(once(rsx! {
+            Box::new(once(rsx! {
                 li {
                     onclick: move |_| {
                         fallback_ui.set(true);
                         menu_open.set(false);
                     },
-                    "Fallback Editor"
+                    "Use fallback editor"
                 }
-            }))
-            )
+            })
+            .chain(once(rsx! {
+                li {
+                    onclick: move |_| {
+                        modal_open.set(true);
+                        menu_open.set(false);
+                    },
+                    "Change expression type"
+                }
+            })))
+
         };
         
         rsx! {
@@ -181,6 +191,21 @@ pub mod components {
                     ul {
                         class: "expression-type-menu",
                         { menu_elements }
+                    }
+                }
+                if modal_open() {
+                    NewExpressionModal {
+                        onclose: Some(EventHandler::new(move |_| {
+                            modal_open.set(false);
+                        })),
+                        onchoose: move |evt: Event<String>| {
+                            let expression = evt.data;
+                            update_node_value(
+                            node.read().clone().into(),
+                            &expression
+                            );
+                            modal_open.set(false);
+                        }
                     }
                 }
                 { body }
@@ -213,6 +238,7 @@ pub mod components {
 mod tests {
     use insta::assert_snapshot;
     use super::*;
+    use std::path::PathBuf;
     use serial_test::serial;
 
     macro_rules! expression_ui_tests {
@@ -245,6 +271,14 @@ mod tests {
                         rsx! { div { "StringInput" } }
                         });
 
+                    let use_path_ctx = crate::ast::mock_hooks::use_path_context();
+                    use_path_ctx.expect()
+                        .returning(|| {
+                        let path = PathBuf::from("./example.txt");
+                        let signal = Signal::new(path);
+                        signal
+                        });
+
                     let mut vdom = VirtualDom::new(|| {
                         let syntax_node = rnix::Root::parse($source).tree();
                         let expr = syntax_node.expr().unwrap();
@@ -267,6 +301,9 @@ mod tests {
         (test_expression_ui_let_in, "let a = 1 in {}", ast::LetIn),
         (test_expression_ui_reference, "foo", ast::Ident),
         (test_expression_ui_string, "\"a string\"", ast::Str),
+        (test_expression_ui_int, "123", ast::Integer),
+        (test_expression_ui_list, "[1 2 3]", ast::List),
+        (test_expression_ui_path, "/path/to/file", ast::Path),
     }
 
     #[test]

@@ -26,6 +26,7 @@ fn App() -> Element {
     let ast = utils::hooks::use_derivation(move || {
         rnix::Root::parse(contents.read().as_str()).tree().syntax().clone()
     });
+    use_context_provider(|| file_path);
     use_context_provider(|| contents);
     use_context_provider(|| ast);
     rsx! {
