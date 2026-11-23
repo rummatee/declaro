@@ -145,7 +145,7 @@ mod tests {
         let get_bindings_in_scope_ctx = get_bindings_in_scope_context();
         get_bindings_in_scope_ctx.expect()
             .returning(|_| {
-            Ok(vec!["foo".to_string(), "bar".to_string()])
+            vec!["foo".to_string(), "bar".to_string()]
             });
         let mut vdom = VirtualDom::new(|| {
             let root = rnix::Root::parse("\"Hello ${foo}\"").tree();
